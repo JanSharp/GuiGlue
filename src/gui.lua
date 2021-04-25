@@ -203,7 +203,7 @@ local function destroy_recursive(inst)
   for _, child in pairs(inst.children) do
     destroy_recursive(child)
   end
-  destroy_internal(inst.elem.index, inst)
+  destroy_internal(inst.id, inst)
 end
 
 ---destroy()s all instances with invalid elements
