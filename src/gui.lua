@@ -19,10 +19,13 @@ local tags_prefab
 
 local tags_magic = 7235849015680863
 
+local restore_metatables
+
 local function on_load()
   script_data = global.gui_glue
   insts = script_data.insts
   tags_prefab = script_data.tags_prefab
+  restore_metatables()
 end
 
 local function on_init()
@@ -65,6 +68,18 @@ end
 local function remove_event_handlers(index, inst)
   for _, event_name in pairs(event_names) do
     event_handlers[event_name][index] = nil
+  end
+end
+
+function restore_metatables()
+  for _, inst in pairs(insts) do
+    local class = classes[inst.class]
+    if not class then
+      error("Missing gui class '"..inst.class
+        .."'. Please register all classes before on_load and make sure migration is working properly.")
+    end
+    setmetatable(inst, class)
+    add_event_handlers(inst)
   end
 end
 
