@@ -21,4 +21,8 @@
 ---@field on_create fun(inst: GuiInst)
 ---@field event_conditions table<string, EventConditionFun>
 
+---@class BasicGuiInst : GuiInst
+---@field name_for_events string
+---@field parent_event_names string[]
+
 -- fix semantics

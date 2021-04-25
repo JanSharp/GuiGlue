@@ -1,5 +1,6 @@
 
 local gui = require("gui")
+require("gui-std")
 
 script.on_load(() => {
   gui.on_load()
@@ -19,7 +20,28 @@ function foo.create(params)
       width = 200,
       height = 150,
     },
+    elem_mods = {
+      auto_center = true,
+    },
+    direction = "vertical",
     str = params.str,
+    children = {
+      {
+        class = "flow",
+        direction = "vertical",
+        children = {
+          {
+            class = "label",
+            caption = "omg this is a label wooooo",
+          },
+          {
+            class = "button",
+            name = "btn",
+            caption = "yooo wassup",
+          },
+        },
+      },
+    },
   }
 end
 
@@ -27,12 +49,16 @@ function foo:on_click(event)
   game.print("click "..self.str.."!")
 end
 
+function foo:on_click_btn(btn, event)
+  game.print("clicked yooooo")
+end
+
 gui.register_class(foo)
 
 script.on_event(defines.events.on_player_created, function(event)
   local player = game.get_player(event.player_index)
   gui.create(player.gui.screen, "foo", nil, {str = "hi"})
-  gui.create(player.gui.screen, "foo", nil, {str = "bye"})
+  -- gui.create(player.gui.screen, "foo", nil, {str = "bye"})
 end)
 
 -- fix semantics
