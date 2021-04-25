@@ -3,12 +3,13 @@
 
 ---@alias EventConditionFun fun(inst: GuiInst):boolean
 
----@class GuiInst : LuaGuiElementadd_param
+---@class GuiInst : LuaGuiElementadd_param, GuiClass
 ---@field id integer
 ---@field name string|nil
 ---@field class_name string
 ---@field elem LuaGuiElement
 ---@field parent GuiInst
+---@field core GuiInst|nil
 ---@field children GuiInst[]
 ---@field elem_mods table<string, _any>|nil
 ---@field style_mods table<string, _any>|nil
@@ -18,6 +19,7 @@
 ---@field create fun(params?: table): GuiInst, table<_any, _any>|nil
 ---@field on_elem_created fun(inst: GuiInst)
 ---@field on_create fun(inst: GuiInst)
+---@field on_destroy fun(inst: GuiInst)
 ---@field event_conditions table<string, EventConditionFun>
 
 ---@class BasicGuiInst : GuiInst

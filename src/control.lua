@@ -37,9 +37,10 @@ function foo.create(params)
         },
         {
           class = "button",
-          data = {core = self},
+          core = self,
           name = "btn",
           caption = "yooo wassup",
+          cool = params.cool,
         },
       },
     },
@@ -52,14 +53,14 @@ function foo:on_click(event)
 end
 
 function foo:on_click_btn(btn, event)
-  game.print("clicked yooooo")
+  game.print("clicked yooooo "..btn.cool.." "..self.btn.cool)
 end
 
 gui.register_class(foo)
 
 script.on_event(defines.events.on_player_created, function(event)
   local player = game.get_player(event.player_index)
-  gui.create(player.gui.screen, "foo", nil, {str = "hi"})
+  gui.create(player.gui.screen, "foo", nil, {str = "hi", cool = "wowoowowowo"})
   -- gui.create(player.gui.screen, "foo", nil, {str = "bye"})
 end)
 

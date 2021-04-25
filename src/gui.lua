@@ -1,7 +1,4 @@
 
--- TODO
----@diagnost ic disable
-
 local event_names = require("event-names")
 
 ---@type table<string, GuiClass>
@@ -62,13 +59,26 @@ local function add_event_handlers(inst)
   end
 end
 
+--- removes all handlers for the given inst from event_handlers
+---@param index integer @ index of the element of the instance
+---@param inst GuiInst
+local function remove_event_handlers(index, inst)
+  for _, event_name in pairs(event_names) do
+    event_handlers[event_name][index] = nil
+  end
+end
+
+-- HACK: language server being weird
+---@diagnostic disable
+
 ---@param parent_element LuaGuiElement
----@param parent GuiInst
+---@param parent? GuiInst
+---@param core? GuiInst
 ---@param class_name string
----@param name string
----@param params table
+---@param name? string
+---@param params? table
 ---@return GuiInst
-local function create_internal(parent_element, parent, class_name, name, params)
+local function create_internal(parent_element, parent, core, class_name, name, params)
   local class = classes[class_name]
   if not class then
     error("No class with the 'class_name' \""..class_name.."\" registered.")
@@ -89,12 +99,22 @@ local function create_internal(parent_element, parent, class_name, name, params)
   ---@type LuaGuiElement
   ---@diagnostic disable-next-line: undefined-field
   local elem = parent_element.add(inst)
-  inst.id = tags.id
-  tags_prefab.id = tags_prefab.id + 1
+  local id = tags.id
+  inst.id = id
+  tags_prefab.id = id + 1
   inst.elem = elem
   inst.class_name = class_name
   insts[inst.elem.index] = inst
-  inst.parent = parent
+  if parent then
+    inst.parent = parent
+    parent.children[id] = inst
+  end
+  if core then
+    inst.core = core
+    if name then
+      core[name] = inst
+    end
+  end
   if passed_data then
     for k, v in pairs(passed_data) do
       inst[k] = v
@@ -124,7 +144,7 @@ local function create_internal(parent_element, parent, class_name, name, params)
   if children then
     ---@type table
     for _, child in pairs(children) do
-      create_internal(elem, inst, child.class, child.name, child)
+      create_internal(elem, inst, child.core, child.class, child.name, child)
     end
   end
 
@@ -134,13 +154,73 @@ local function create_internal(parent_element, parent, class_name, name, params)
   return inst
 end
 
+-- HACK: language server being weird
+---@diagnostic enable
+
 ---@param parent_element LuaGuiElement
 ---@param class_name string
 ---@param name string
 ---@param params table
 ---@return GuiInst
 local function create(parent_element, class_name, name, params)
-  return create_internal(parent_element, nil, class_name, name, params)
+  return create_internal(parent_element, nil, nil, class_name, name, params)
+end
+
+---cleans up and calls inst.on_destroy if it exists.
+---@param id integer
+---@param inst GuiInst
+local function destroy_internal(id, inst)
+  insts[id] = nil
+  remove_event_handlers(id, inst)
+  local func = inst.on_destroy
+  if func then func(inst) end
+end
+
+---calls inst.on_destroy on every child, and child of child if it exists.
+---@param inst GuiInst
+local function destroy_recursive(inst)
+  for _, child in pairs(inst.children) do
+    destroy_recursive(child)
+  end
+  destroy_internal(inst.elem.index, inst)
+end
+
+---destroy()s all instances with invalid elements
+local function clear_invalid_instances()
+  local id, inst = next(insts)
+  while id do
+    local nk, nv = next(insts, id)
+    if not inst.elem.valid then
+      destroy_internal(id, inst)
+    end
+    id, inst = nk, nv
+  end
+end
+
+---destroys inst and all of it's children.
+---
+---calls on_destroy on every inst getting destroyed.
+---
+---if inst is a child, it will remove itself from the parent.
+---@param inst GuiInst
+local function destroy(inst)
+  if not inst.elem.valid then
+    return clear_invalid_instances()
+  end
+  destroy_recursive(inst)
+  inst.elem.destroy()
+
+  local parent = inst.parent
+  if parent then
+    parent.children[inst.id] = nil
+    local name = inst.name
+    if name then
+      local core = inst.core
+      if core then
+        core[name] = nil
+      end
+    end
+  end
 end
 
 ---@param class GuiClass
@@ -172,8 +252,7 @@ local function register_class(class)
   -- class.add = gui_handler.add_child
   -- class.add_definition = gui_handler.add_child_definition
   -- class.add_children = gui_handler.add_children
-  -- class.destroy = gui_handler.destroy
-  -- class.got_destroyed = gui_handler.got_destroyed
+  class.destroy = destroy
 end
 
 for _, event_name in pairs(event_names) do
@@ -198,6 +277,8 @@ return {
   on_init = on_init,
   create = create,
   register_class = register_class,
+  clear_invalid_instances = clear_invalid_instances,
+  destroy = destroy,
 }
 
 -- fix semantics

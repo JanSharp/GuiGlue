@@ -29,9 +29,10 @@ for _, class_name in pairs(class_names) do
   local class = {
     class_name = class_name,
     create = params => {
+      params.type = class_name
+      params.core = nil
       local data = params.data
       params.data = nil
-      params.type = class_name
       return params, data
     },
     event_conditions = {},
