@@ -48,7 +48,7 @@ end
 ---@param inst GuiInst
 local function add_event_handlers(inst)
   local id = inst.id
-  local class_name = inst.class_name
+  local class_name = inst.class
   for _, event_name in pairs(cached_class_events[class_name]) do
     event_handlers[event_name][id] = inst
   end
@@ -72,22 +72,23 @@ end
 ---@diagnostic disable
 
 ---@param parent_element LuaGuiElement
----@param parent? GuiInst
----@param core? GuiInst
 ---@param class_name string
 ---@param name? string
 ---@param params? table
+---@param parent? GuiInst
+---@param core? GuiInst
 ---@return GuiInst
-local function create_internal(parent_element, parent, core, class_name, name, params)
+local function create_internal(parent_element, class_name, name, params, parent, core)
   local class = classes[class_name]
   if not class then
     error("No class with the 'class_name' \""..class_name.."\" registered.")
   end
   -- HACK: language server annotations being weird
   ---@typelist GuiInst, table<_any, _any>
-  local inst, passed_data = class.create(params)
+  local inst, data = class.create(params)
   setmetatable(inst, class)
 
+  ---@type GuiChild[]
   local children = inst.children
   inst.children = {} -- removing the reference to children before parent_element.add,
   -- because children may cause recursive tables
@@ -99,12 +100,13 @@ local function create_internal(parent_element, parent, core, class_name, name, p
   ---@type LuaGuiElement
   ---@diagnostic disable-next-line: undefined-field
   local elem = parent_element.add(inst)
+  inst.elem = elem
+  inst.tags = nil
   local id = tags.id
   inst.id = id
   tags_prefab.id = id + 1
-  inst.elem = elem
-  inst.class_name = class_name
-  insts[inst.elem.index] = inst
+  inst.class = class_name
+  insts[id] = inst
   if parent then
     inst.parent = parent
     parent.children[id] = inst
@@ -115,8 +117,8 @@ local function create_internal(parent_element, parent, core, class_name, name, p
       core[name] = inst
     end
   end
-  if passed_data then
-    for k, v in pairs(passed_data) do
+  if data then
+    for k, v in pairs(data) do
       inst[k] = v
     end
   end
@@ -142,9 +144,8 @@ local function create_internal(parent_element, parent, core, class_name, name, p
   add_event_handlers(inst)
 
   if children then
-    ---@type table
     for _, child in pairs(children) do
-      create_internal(elem, inst, child.core, child.class, child.name, child)
+      create_internal(elem, child.class, child.name, child, inst, child.core)
     end
   end
 
@@ -158,12 +159,17 @@ end
 ---@diagnostic enable
 
 ---@param parent_element LuaGuiElement
----@param class_name string
----@param name string
----@param params table
+---@param child GuiChild
 ---@return GuiInst
-local function create(parent_element, class_name, name, params)
-  return create_internal(parent_element, nil, nil, class_name, name, params)
+local function create(parent_element, child)
+  return create_internal(parent_element, child.class, child.name, child, nil, child.core)
+end
+
+---@param inst GuiInst
+---@param child GuiChild
+---@return GuiInst
+local function add(inst, child)
+  return create_internal(inst.elem, child.class, child.name, child, inst, child.core)
 end
 
 ---cleans up and calls inst.on_destroy if it exists.
@@ -247,11 +253,8 @@ local function register_class(class)
     end
   end
 
-  -- TODO
   -- these functions will be directly accessable on the instances, because metatables
-  -- class.add = gui_handler.add_child
-  -- class.add_definition = gui_handler.add_child_definition
-  -- class.add_children = gui_handler.add_children
+  class.add = add
   class.destroy = destroy
 end
 
@@ -276,6 +279,7 @@ return {
   on_load = on_load,
   on_init = on_init,
   create = create,
+  add = add,
   register_class = register_class,
   clear_invalid_instances = clear_invalid_instances,
   destroy = destroy,

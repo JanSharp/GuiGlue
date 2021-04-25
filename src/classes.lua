@@ -6,7 +6,7 @@
 ---@class GuiInst : LuaGuiElementadd_param, GuiClass
 ---@field id integer
 ---@field name string|nil
----@field class_name string
+---@field class string
 ---@field elem LuaGuiElement
 ---@field parent GuiInst
 ---@field core GuiInst|nil
@@ -21,6 +21,11 @@
 ---@field on_create fun(inst: GuiInst)
 ---@field on_destroy fun(inst: GuiInst)
 ---@field event_conditions table<string, EventConditionFun>
+
+---@class GuiChild
+---@field class string @ class_name
+---@field name string|nil
+---@field core GuiInst|nil
 
 ---@class BasicGuiInst : GuiInst
 ---@field core GuiInst|nil
