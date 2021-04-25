@@ -63,11 +63,11 @@ local function add_event_handlers(inst)
 end
 
 --- removes all handlers for the given inst from event_handlers
----@param index integer @ index of the element of the instance
+---@param id integer @ id of the element of the instance
 ---@param inst GuiInst
-local function remove_event_handlers(index, inst)
+local function remove_event_handlers(id, inst)
   for _, event_name in pairs(event_names) do
-    event_handlers[event_name][index] = nil
+    event_handlers[event_name][id] = nil
   end
 end
 
