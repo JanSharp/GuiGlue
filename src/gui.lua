@@ -94,12 +94,7 @@ local function create_internal(parent_element, parent, class_name, name, params)
   inst.elem = elem
   inst.class_name = class_name
   insts[inst.elem.index] = inst
-  if parent then
-    inst.parent = parent
-    inst.main_parent = parent.main_parent
-  else
-    inst.main_parent = inst
-  end
+  inst.parent = parent
   if passed_data then
     for k, v in pairs(passed_data) do
       inst[k] = v

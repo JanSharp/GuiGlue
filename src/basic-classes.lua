@@ -29,10 +29,10 @@ for _, class_name in pairs(class_names) do
   local class = {
     class_name = class_name,
     create = params => {
-      local passed_data = params.passed_data
-      params.passed_data = nil
+      local data = params.data
+      params.data = nil
       params.type = class_name
-      return params, passed_data
+      return params, data
     },
     event_conditions = {},
 
@@ -51,18 +51,18 @@ for _, class_name in pairs(class_names) do
   for i, event_name in ipairs(full_event_names) do -- event conditions and event handlers
     ---@param self BasicGuiInst
     ---@return boolean
-    class.event_conditions[event_name] = self => { -- this means event handlers only get subscribed if the main_parent actually defines a handler for it and self has a name
+    class.event_conditions[event_name] = self => { -- this means event handlers only get subscribed if the core actually defines a handler for it and self has a name
       if self.name_for_events then
-        local main_parent = self.main_parent
-        return main_parent and main_parent[self.parent_event_names[i]]
+        local core = self.core
+        return core and core[self.parent_event_names[i]]
       end
       return false
     }
     ---@param self BasicGuiInst
     ---@param event on_gui_click (or any other gui event)
     class[event_name] = (self, event) => { -- the event handler, no checks thanks to event_conditions
-      local main_parent = self.main_parent
-      main_parent[self.parent_event_names[i]](main_parent, self, event)
+      local core = self.core
+      core[self.parent_event_names[i]](core, self, event)
     }
   end
 

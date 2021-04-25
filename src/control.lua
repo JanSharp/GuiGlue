@@ -13,7 +13,7 @@ script.on_init(() => {
 local foo = {class_name = "foo"}
 
 function foo.create(params)
-  return {
+  local self = {
     type = "frame",
     caption = "Foo "..params.str,
     style_mods = {
@@ -25,24 +25,26 @@ function foo.create(params)
     },
     direction = "vertical",
     str = params.str,
-    children = {
-      {
-        class = "flow",
-        direction = "vertical",
-        children = {
-          {
-            class = "label",
-            caption = "omg this is a label wooooo",
-          },
-          {
-            class = "button",
-            name = "btn",
-            caption = "yooo wassup",
-          },
+  }
+  self.children = {
+    {
+      class = "flow",
+      direction = "vertical",
+      children = {
+        {
+          class = "label",
+          caption = "omg this is a label wooooo",
+        },
+        {
+          class = "button",
+          data = {core = self},
+          name = "btn",
+          caption = "yooo wassup",
         },
       },
     },
   }
+  return self
 end
 
 function foo:on_click(event)

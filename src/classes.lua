@@ -9,7 +9,6 @@
 ---@field class_name string
 ---@field elem LuaGuiElement
 ---@field parent GuiInst
----@field main_parent GuiInst
 ---@field children GuiInst[]
 ---@field elem_mods table<string, _any>|nil
 ---@field style_mods table<string, _any>|nil
@@ -22,7 +21,8 @@
 ---@field event_conditions table<string, EventConditionFun>
 
 ---@class BasicGuiInst : GuiInst
----@field name_for_events string
+---@field core GuiInst|nil
+---@field name_for_events string|nil
 ---@field parent_event_names string[]
 
 -- fix semantics
