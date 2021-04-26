@@ -108,6 +108,11 @@ local function create_internal(parent_element, class_name, name, params, parent,
   inst.children = {} -- removing the reference to children before parent_element.add,
   -- because children may cause recursive tables
 
+  local elem_mods = inst.elem_mods
+  inst.elem_mods = nil
+  local style_mods = inst.style_mods
+  inst.style_mods = nil
+
   inst.name = name
   local tags = tags_prefab
   inst.tags = tags
@@ -138,17 +143,15 @@ local function create_internal(parent_element, class_name, name, params, parent,
     end
   end
 
-  local mods = inst.elem_mods
-  if mods then
-    for k, v in pairs(mods) do
+  if elem_mods then
+    for k, v in pairs(elem_mods) do
       elem[k] = v
     end
   end
 
-  mods = inst.style_mods
-  if mods then
+  if style_mods then
     local style = elem.style
-    for k, v in pairs(mods) do
+    for k, v in pairs(style_mods) do
       style[k] = v
     end
   end
