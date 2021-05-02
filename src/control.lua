@@ -51,7 +51,6 @@ end
 
 function foo:on_create()
   self.player.opened = self.elem
-  self.title_bar:set_searching(true)
 end
 
 function foo:close()
