@@ -14,8 +14,8 @@
       "args": [
         "--", "main.lua",
         "--project-name", "GuiGlue",
-        "--source-dir", "C:/Portable/Factorio/Modding/mods/GuiGlue/src",
-        "--source-extensions", ".lua",
+        "--source-dir", "C:/Portable/Factorio/Modding/mods/GuiGlue",
+        "--source-extensions", ".luap",
         "--target-dir", "C:/Portable/Factorio/Modding/mods/GuiGlue",
         "--target-extension", ".lua",
         "--auto-clean-up-target-dir",
