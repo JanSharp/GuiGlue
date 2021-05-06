@@ -21,6 +21,8 @@
 ---@field on_create fun(inst: GuiInst)
 ---@field on_destroy fun(inst: GuiInst)
 ---@field event_conditions table<string, EventConditionFun>
+---@field add fun(inst: GuiInst, child: GuiChild): GuiInst @ add a child to this instantce
+---@field destroy fun(inst: GuiInst) @ destroy this instance
 
 ---@class GuiChild
 ---@field class string @ class_name

@@ -181,7 +181,7 @@ local function insert(fake_list, pos, value)
 end
 
 ---@param fake StateFake
----@return StateChange
+---@return StateChange[]
 ---@return integer @ change_count
 local function get_changes(fake)
   local internal = fake.__internal
