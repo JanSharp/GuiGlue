@@ -1,0 +1,33 @@
+
+local enums = require("enums")
+
+---@generic T
+---@param reacts_to string
+---@param setter fun(state: State): T
+---@return table
+local function dynamic(reacts_to, setter)
+  return {
+    __std_gui = true,
+    type = enums.std_gui_attribute.dynamic,
+    reacts_to = reacts_to,
+    setter = setter,
+  }
+end
+
+---@generic T
+---@param setter fun(state: State): T
+---@return table
+local function static(setter)
+  return {
+    __std_gui = true,
+    type = enums.std_gui_attribute.static,
+    setter = setter,
+  }
+end
+
+return {
+  dynamic = dynamic,
+  static = static,
+}
+
+-- fix semantics

@@ -1,0 +1,84 @@
+
+local gui = require("gui")
+local std_gui = require("std-gui")
+local attr = require("std-gui-attributes")
+
+script.on_init(std_gui.on_init)
+script.on_load(std_gui.on_load)
+
+local std_button = {
+  class_name = "std-button",
+  type = "button",
+
+  -- on_register = child =>
+  -- {
+  --   return {
+  --   }
+  -- },
+}
+
+std_gui.register_class(std_button)
+
+local foo = {
+  class_name = "foo",
+  type = "frame",
+  direction = "vertical",
+  caption = attr.dynamic("number", state => ("Num: "..tostring(state.number))),
+
+  ---@param event on_gui_click
+  on_click = (self, event) => {
+    if event.button == defines.mouse_button_type.left then
+      self.state.number = self.state.number + 1
+    elseif event.button == defines.mouse_button_type.right then
+      self.state.number = self.state.number - 1
+    elseif event.button == defines.mouse_button_type.middle then
+      self.state.number = 0
+    end
+    self:draw()
+  },
+
+  ---@param event on_gui_location_changed
+  on_location_changed = (self, event) => {
+    self.state.number = self.state.number + 1
+    self:draw()
+  },
+
+  -- TODO: support static and dynamic attributes in elem_mods and style_mods
+  elem_mods = {auto_center = true},
+  style_mods = {
+    width = 300,
+    height = 200,
+  },
+
+
+  children = {
+    {
+      class_name = "double",
+      class = "std-button",
+      caption = "Double Num",
+
+      on_click = self => {
+        self.core.state.number = self.core.state.number * 2
+        self.core:draw()
+      },
+    },
+  },
+}
+
+std_gui.register_class(foo)
+
+
+
+script.on_event(defines.events.on_player_created, function(event)
+  local player = game.get_player(event.player_index)
+
+  local state_controller = std_gui.create_state_controller()
+
+  local state = std_gui.create_state(state_controller, {
+    number = 0,
+  })
+
+  gui.create(player.gui.screen, {class = "foo", state = state})
+end)
+
+-- fix semantics

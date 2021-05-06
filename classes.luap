@@ -1,5 +1,5 @@
 
----@class _any
+---@class Any : table
 
 ---@alias EventConditionFun fun(inst: GuiInst):boolean
 
@@ -11,18 +11,31 @@
 ---@field parent GuiInst
 ---@field core GuiInst|nil
 ---@field children GuiInst[]
----@field elem_mods table<string, _any>|nil
----@field style_mods table<string, _any>|nil
+---@field elem_mods table<string, Any>|nil
+---@field style_mods table<string, Any>|nil
 
 ---@class GuiClass
 ---@field class_name string
----@field create fun(params?: table): GuiInst, table<_any, _any>|nil
+---@field create fun(params?: table): GuiInst, table<Any, Any>|nil
 ---@field on_elem_created fun(inst: GuiInst)
 ---@field on_create fun(inst: GuiInst)
 ---@field on_destroy fun(inst: GuiInst)
 ---@field event_conditions table<string, EventConditionFun>
 ---@field add fun(inst: GuiInst, child: GuiChild): GuiInst @ add a child to this instantce
 ---@field destroy fun(inst: GuiInst) @ destroy this instance
+
+---@class StdGuiClass : GuiStructure
+
+---@class GuiStructure
+---@field class_name string
+---@field class string|nil @ parent class name used for children
+---@field children GuiStructure[]|nil
+
+---@class StdAttribute
+---@field __std_gui boolean @ true
+---@field type EnumStdGuiAttribute
+---@field setter fun(state: State): Any
+---@field reacts_to string @ if this is dynamic, which state field to react to -- TODO
 
 ---@class GuiChild
 ---@field class string @ class_name

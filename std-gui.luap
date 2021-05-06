@@ -1,0 +1,168 @@
+
+local enums = require("enums")
+local gui = require("gui")
+local state_util = require("state-util")
+
+local classes = {} ---@type table<string, StdGuiClass>
+
+local script_data
+
+local function on_load()
+  script_data = global.gui_glue_std
+  gui.on_load()
+end
+
+local function on_init()
+  ---@class gui_glue_std_script_data
+  script_data = {
+  }
+  global.gui_glue_std = script_data
+  gui.on_init()
+end
+
+local function create_state_controller()
+  return {} -- TODO
+end
+
+local function create_state(state_controller, state)
+  -- TODO: state_controller
+  return state_util.create_state(state)
+end
+
+
+
+---@param structure GuiStructure
+local function register_class(structure)
+  local inst_prefab = {} ---@type GuiInst
+  local eval_in_create = {}
+  local dynamic_attribute_lut = {}
+  local funcs = {} ---@type table<string, function>
+  local children = structure.children
+  structure.children = nil
+
+  local class_name = structure.class_name
+  local class = {class_name = class_name} ---@type GuiClass
+  ---@type StdGuiClass
+  local std_class = {
+    class_name = class_name,
+    framework_class = class,
+    inst = inst_prefab,
+    eval_in_create = eval_in_create,
+    dynamic_attribute_lut = dynamic_attribute_lut,
+    funcs = funcs,
+  }
+  classes[class_name] = std_class
+
+  ---@param dynamic_attribute StdAttribute
+  local function add_to_dynamic_lut(dynamic_attribute)
+    local reacts_to = dynamic_attribute.reacts_to
+    local dynamic_attributes = dynamic_attribute_lut[reacts_to]
+    if not dynamic_attributes then
+      dynamic_attributes = {}
+      dynamic_attribute_lut[reacts_to] = dynamic_attributes
+    end
+    dynamic_attributes[#dynamic_attributes+1] = dynamic_attribute
+  end
+
+  ---@typelist string, Any
+  for attribute_name, value in pairs(structure) do
+    local value_type = type(value)
+    if value_type == "function" then
+      ---@narrow value function
+      class[attribute_name] = value
+      funcs[attribute_name] = value
+    elseif value_type == "table" and value.__std_gui then
+      ---@narrow value StdAttribute
+      value.attribute_name = attribute_name
+      if value.type == enums.std_gui_attribute.static then
+        eval_in_create[attribute_name] = value.setter
+      elseif value.type == enums.std_gui_attribute.dynamic then
+        eval_in_create[attribute_name] = value.setter
+        add_to_dynamic_lut(value)
+      end
+    else
+      inst_prefab[attribute_name] = value
+    end
+  end
+
+  function class.create(params)
+    local inst = {}
+    for k, v in pairs(inst_prefab) do
+      inst[k] = v -- TODO: deepcopy?
+    end
+    local state = params.state
+    for k, setter in pairs(eval_in_create) do
+      inst[k] = setter(state)
+    end
+    if children then
+      local inst_children = inst.children
+      for _, child in pairs(inst_children) do
+        child.core = inst
+      end
+    end
+    return inst, {state = state}
+  end
+
+  function class:draw()
+    local state = self.state
+    local changes, change_count = state_util.get_changes(state)
+    for i = 1, change_count do
+      local change = changes[i]
+      if change.type == enums.state_change.assigned then
+        local dynamic_attributes = dynamic_attribute_lut[change.key]
+        if dynamic_attributes then
+          local elem = self.elem
+          for _, dynamic_attribute in pairs(dynamic_attributes) do
+            elem[dynamic_attribute.attribute_name] = dynamic_attribute.setter(state)
+          end
+        end
+      else
+        -- TODO
+      end
+    end
+
+    -- TODO
+    self.state.__internal.changes = {}
+    self.state.__internal.change_count = 0
+  end
+
+  gui.register_class(class)
+
+  if children then
+    local inst_children = {}
+    inst_prefab.children = inst_children
+
+    ---@typelist integer, StdGuiClass
+    for i, child in pairs(children) do
+      child.class_name = class_name.."-"..child.class_name
+      local parent_class = classes[child.class]
+      if not parent_class then
+        error("REEEE")
+      end
+
+      for attribute_name, value in pairs(parent_class.inst) do
+        if attribute_name ~= "class_name" then
+          child[attribute_name] = value
+        end
+      end
+      -- TODO: copy the rest of the std class
+
+      inst_children[i] = {
+        class = child.class_name,
+        -- TODO: more data?
+      }
+
+      register_class(child)
+    end
+  end
+end
+
+return {
+  on_load = on_load,
+  on_init = on_init,
+  create_state_controller = create_state_controller,
+  create_state = create_state,
+  register_class = register_class,
+}
+
+-- fix semantics

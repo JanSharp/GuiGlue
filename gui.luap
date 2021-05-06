@@ -99,7 +99,7 @@ local function create_internal(parent_element, class_name, name, params, parent,
     error("No class with the 'class_name' \""..class_name.."\" registered.")
   end
   -- HACK: language server annotations being weird
-  ---@typelist GuiInst, table<_any, _any>
+  ---@typelist GuiInst, table<Any, Any>
   local inst, data = class.create(params)
   setmetatable(inst, class)
 
@@ -281,7 +281,7 @@ for _, event_name in pairs(event_names) do
   local event_specific_handlers = event_handlers[event_name]
 
   ---@param event on_gui_click (or any other of the on_gui events)
-  script.on_event(defines.events["on_gui_"..event_name], (event) => {
+  script.on_event(defines.events["on_gui_"..event_name], event => {
     if not event.element then return end -- for on_gui_closed and on_gui_opened
     local tags = event.element.tags
     if tags.__gui_glue_magic == tags_magic then
