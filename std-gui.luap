@@ -43,17 +43,18 @@ end
 ---@type StateController
 local function draw(controller)
   for internal in next, controller.changed_state_lut do
+    local state = internal.fake
     local callback_insts = internal.callback_insts
     if callback_insts then
       for inst in next, callback_insts do
+        local state_name = inst.state_name_map[state]
         local on_state_dispatch = inst.on_state_dispatch
         if on_state_dispatch then
-          -- TODO: get the name of the state
-          on_state_dispatch(inst, internal.fake)
+          on_state_dispatch(inst, state, state_name)
         end
       end
     end
-    state_util.clear_changes(internal.fake)
+    state_util.clear_changes(state)
   end
   controller.changed_state_lut = {}
 end
@@ -87,6 +88,7 @@ end
 ---@param core_class_name string
 local function register_class(structure, parent_class_name, core_class_name)
   local is_core ---@type boolean
+  local structure_is_core ---@type boolean
   local inst_prefab ---@type GuiInst
   local state_names ---@type string[]
   local eval_in_create ---@type table<string, fun(state?: State, ...): Any>
@@ -138,6 +140,7 @@ local function register_class(structure, parent_class_name, core_class_name)
   if structure.is_core then
     is_core = structure.is_core
     structure.is_core = nil
+    structure_is_core = is_core
     deriving_name_lut = deriving_name_lut or {}
   end
   if structure.states then
@@ -274,12 +277,16 @@ local function register_class(structure, parent_class_name, core_class_name)
       on_create(inst, params)
     end
 
+    local state_name_map = {}
+    data.state_name_map = state_name_map
     local controller = params.controller ---@type StateController
     data.controller = controller
     local states = params.states
     if states then
       for i, state in next, states do
-        data[state_names[i]] = state
+        local state_name = state_names[i]
+        data[state_name] = state
+        state_name_map[state] = state_name
         register_inst_to_state(inst, state)
       end
     else
@@ -288,6 +295,7 @@ local function register_class(structure, parent_class_name, core_class_name)
       if state_names then
         for i, state_name in next, state_names do
           local state = params[state_name] ---@type State
+          state_name_map[state] = state_name
           if state then
             state_util.add_controller(state, controller) -- make sure the state has this controller added
           else
@@ -327,7 +335,7 @@ local function register_class(structure, parent_class_name, core_class_name)
 
   function class:on_state_dispatch(state, state_name)
     local changes, change_count = state_util.get_changes(state)
-    local state_dynamic_attribute_lut = dynamic_attribute_lut[state_name or state_names[1]] -- HACK: state_names[1]
+    local state_dynamic_attribute_lut = dynamic_attribute_lut[state_name]
     local unpack = table.unpack
     for i = 1, change_count do
       local change = changes[i]
@@ -366,7 +374,7 @@ local function register_class(structure, parent_class_name, core_class_name)
 
   gui.register_class(class)
 
-  core_class_name = core_class_name or class_name
+  core_class_name = (structure_is_core and class_name) or core_class_name or class_name
   if child_structures then
     ---@typelist integer, GuiStructure
     for _, child in pairs(child_structures) do

@@ -129,15 +129,29 @@ local foo = {
       structures = {
         list_item = {
           class_name = "item",
-          type = "button",
+          is_core = true,
+          type = "flow",
+          direction = "horizontal",
           states = {"state", "item_state"},
-          caption = attr.dynamic({"state.number", "item_state.number"},
-            (state, item_state) => (tostring(state.number).." + "..tostring(item_state.number))
-          ),
 
-          on_click = (self, event) => {
-            self.state.number = self.state.number + self.item_state.number
-            self:draw()
+          children = {
+            {
+              class_name = "btn",
+              type = "button",
+              -- TODO: how to improve this that copying state references is not needed
+              states = {"state", "item_state"},
+              on_create = (self, data) => {
+                data.state = data.core.state
+                data.item_state = data.core.item_state
+              },
+              caption = attr.dynamic({"state.number", "item_state.number"},
+                (state, item_state) => (tostring(state.number).." + "..tostring(item_state.number))
+              ),
+              on_click = (self, event) => {
+                self.state.number = self.state.number + self.item_state.number
+                self:draw()
+              },
+            },
           },
         },
       },
