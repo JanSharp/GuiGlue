@@ -1,0 +1,45 @@
+
+---@diagnostic disable
+
+local setmetatable = setmetatable
+local next = next
+local type = type
+
+local metas = {}
+
+---@param id Any
+---@param meta table
+local function register_meta(id, meta)
+  metas[id] = meta
+end
+
+-- just to make sure this doesn't run multiple times
+local done = false
+
+local function restore_metatables()
+  if done then return end
+  done = true
+  local visited = {}
+  local function visit(value)
+    if visited[value] then return end
+    if type(value) == "table" then
+      visited[value] = true
+      local meta = metas[value.__meta_id]
+      if meta then
+        setmetatable(value, meta)
+      end
+      for k, v in next, value do
+        visit(k)
+        visit(v)
+      end
+    end
+  end
+  visit(global)
+end
+
+return {
+  register_meta = register_meta,
+  restore_metatables = restore_metatables,
+}
+
+-- fix semantics

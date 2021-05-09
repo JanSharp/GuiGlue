@@ -16,10 +16,13 @@
 
 ---@class GuiClass
 ---@field class_name string
+---transform `child` (for example it's `name` or `core`),
+---which is also the `params` table passed to `create`
+---@field on_pre_create fun(child: GuiChild, parent?: GuiInst)|nil
 ---@field create fun(params?: table): GuiInst, table<Any, Any>|nil
----@field on_elem_created fun(inst: GuiInst)
----@field on_create fun(inst: GuiInst)
----@field on_destroy fun(inst: GuiInst)
+---@field on_elem_created fun(inst: GuiInst)|nil
+---@field on_children_created fun(inst: GuiInst)|nil
+---@field on_destroy fun(inst: GuiInst)|nil
 ---@field event_conditions table<string, EventConditionFun>
 ---@field add fun(inst: GuiInst, child: GuiChild): GuiInst @ add a child to this instantce
 ---@field destroy fun(inst: GuiInst) @ destroy this instance
@@ -28,6 +31,7 @@
 
 ---@class GuiStructure
 ---@field class_name string
+---@field states string[]|nil @ names of states this class is going to use
 ---@field class string|nil @ parent class name used for children
 ---@field children GuiStructure[]|nil
 
@@ -48,36 +52,26 @@
 ---@field parent_event_names string[]
 
 
----@alias true boolean
----@alias false boolean
-
 ---@class StateFake : State
 
 ---@class State : table
 ---@field __internal StateInternal
 
----@class StateCore
----@field internal_tables table<StateInternal, true>
----@field fake_to_internal table<StateFake, StateInternal>
----@field changed_tables table<StateInternal, true>
----@field __internal StateCoreInternalHack
-
----@class StateCoreInternalHack
----@field data table<string, StateFake> @ contains a single key value pair. the value is the root of the entire state
-
 ---@class StateInternal
----@field core StateCore
+---@field controllers table<StateController, boolean>
 ---@field data table @ Any table keys or values are StateFakes
----@field child_tables table<Any, StateFake>
 ---@field changes StateChange[]
 ---@field change_count integer
 ---@field fake StateFake
 ---@field lowest_changed_index integer|nil @ --TODO
 
+---@class StateController
+---@field changed_state_lut table<StateInternal, boolean>
+
 ---@class StateChange
 ---@field type EnumStateChange
 ---@field key Any
----@field old Any | nil
----@field new Any | nil
+---@field old Any|nil
+---@field new Any|nil
 
 -- fix semantics

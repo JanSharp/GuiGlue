@@ -1,51 +1,26 @@
 
+local meta_util = require("metatable-util")
 local enums = require("enums")
 local state_change = enums.state_change
 
 local table_remove = table.remove
 local table_insert = table.insert
 
+local meta_id = "state_6674114660568425"
 local meta
-local hook_table
-local hook_value
-local unhook_internal
 
 ---@param source table
----@param source_name string
----@return StateFake
-local function initial_hook(source, source_name)
-  local core = {
-    internal_tables = {},
-    fake_to_internal = {},
-    changed_tables = {},
-
-    __internal = { -- HACK: i do not like this one bit, but it helps keep things generic
-      data = {
-        [source_name] = source,
-      },
-    },
-  }
-  return hook_table(source, core, source_name)
-end
-
----@param source table
----@param core StateCore
----@param key Any
----@return StateFake @ the table source gets modified to become this return value
-function hook_table(source, core, key)
+---@return State @ the table source gets modified to become this return value
+local function hook(source)
   local internal_data = {}
   local internal = { ---@type StateInternal
-    core = core,
+    controllers = {},
     data = internal_data,
-    child_tables = {},
     -- lowest_changed_index = nil,
     changes = {},
     change_count = 0,
     fake = source, -- source will become the fake table
   }
-
-  core.internal_tables[internal] = true
-  core.fake_to_internal[source] = internal
 
   -- move data to internal_data
   local k, v = next(source) ---@type Any
@@ -53,64 +28,26 @@ function hook_table(source, core, key)
     local nk, nv = next(source, k) ---@type Any
     source[k] = nil
     internal_data[k] = v
-    hook_value(v, core, internal, k)
     k, v = nk, nv
   end
   -- source is now the fake table
 
   source.__internal = internal
+  source.__meta_id = meta_id
   setmetatable(source, meta)
   return source
 end
 
----@param value Any|StateFake
----@param core StateCore
----@param parent StateInternal
----@param key Any
----@return StateFake|nil @ returns a fake table if value was a table otherwise nil
-function hook_value(value, core, parent, key)
-  local internal = core.fake_to_internal[value]
-  if internal then
-    parent.child_tables[key] = value
-    return value
-  elseif type(value) == "table" then
-    if value.__internal then
-      -- TODO: probably remove cores entirely
-      error("Using the same state in different cores is currently not supported.")
-    end
-    parent.child_tables[key] = value
-    return hook_table(value, core, key) -- tail call
-  end
-end
-
 ---@param fake StateFake
----@param internal StateInternal
-function unhook_internal(fake, internal)
-  local core = internal.core
-  core.internal_tables[internal] = nil
-  core.changed_tables[internal] = nil
-  local fake_to_internal = core.fake_to_internal
-  fake_to_internal[fake] = nil
-
+local function unhook(fake)
   setmetatable(fake, nil)
-  fake.__internal = nil
-
   -- move data back
   ---@type Any
-  for k, v in next, internal.data do
+  for k, v in next, fake.__internal.data do
     fake[k] = v
-    local child_internal = fake_to_internal[v]
-    if child_internal then
-      unhook_internal(v, child_internal) -- also unhook children
-      -- TODO: maybe don't unhook children implicitly?
-    end
   end
-end
-
----@param fake StateFake
----@return nil
-local function unhook_table(fake)
-  return unhook_internal(fake, fake.__internal)
+  fake.__internal = nil
+  fake.__meta_id = nil
 end
 
 ---@param fake_list StateFake
@@ -136,10 +73,10 @@ local function remove(fake_list, pos)
     old = data[pos], ---@type Any
   }
 
-  local child_tables = internal.child_tables
-  for i = pos + 1, #data, 1 do
-    local target_i = i - 1
-    child_tables[target_i] = child_tables[i]
+  if change_count == 1 then
+    for controller in next, internal.controllers do
+      controller.changed_state_lut[internal] = true
+    end
   end
 
   return table_remove(data, pos)
@@ -169,23 +106,44 @@ local function insert(fake_list, pos, value)
     new = value,
   }
 
-  local child_tables = internal.child_tables
-  for i = #data, pos, -1 do
-    local target_i = i + 1
-    child_tables[target_i] = child_tables[i]
+  if change_count == 1 then
+    for controller in next, internal.controllers do
+      controller.changed_state_lut[internal] = true
+    end
   end
-
-  hook_value(value, internal.core, internal, pos)
 
   return table_insert(data, pos, value)
 end
 
----@param fake StateFake
----@return StateChange[]
----@return integer @ change_count
-local function get_changes(fake)
-  local internal = fake.__internal
-  return internal.changes, internal.change_count
+---make sure to use `change_count` as the upper limit when iterating when using
+---clear_changes to, well, clear changes, because it does not reset `changes`.
+---@param state State
+---@return StateChange[] changes
+---@return integer change_count
+---@return integer lowest_changed_index
+local function get_changes(state)
+  local internal = state.__internal
+  return internal.changes, internal.change_count, internal.lowest_changed_index
+end
+
+---resets `change_count` and `lowest_changed_index`\
+---does not clear `changes` for better overall performance,
+---if that is required, use `force_clear_changes`\
+---so make sure to use `change_count` when iterating
+---@param state State
+local function clear_changes(state)
+  local internal = state.__internal
+  internal.change_count = 0
+  internal.lowest_changed_index = nil
+end
+
+---resets `changes`, `change_count` and `lowest_changed_index`\
+---this creates a new table for `changes`, which is
+---a waste of resources most of the time.
+---@param state State
+local function force_clear_changes(state)
+  clear_changes(state)
+  state.__internal.changes = {}
 end
 
 meta = {
@@ -209,20 +167,10 @@ meta = {
   ---@param new_value Any
   __newindex = function(current, key, new_value)
     local internal = current.__internal
-    local core = internal.core
 
     local internal_data = internal.data
     local old_value = internal_data[key]
     if new_value ~= old_value then
-      if not hook_value(new_value, core, internal, key) then
-        local old_internal = core.fake_to_internal[old_value]
-        if old_internal then
-          internal.child_tables[key] = nil
-        end
-      end
-
-      core.changed_tables[internal] = true
-
       local changes = internal.changes
       local change_count = internal.change_count + 1
       internal.change_count = change_count ---@type integer
@@ -230,28 +178,51 @@ meta = {
         type = state_change.assigned,
         key = key,
         old = old_value,
-        new = new_value, ---@type Any -- if it's a table, it's a fake table
+        new = new_value, ---@type Any
       }
+
+      if change_count == 1 then
+        for controller in next, internal.controllers do
+          controller.changed_state_lut[internal] = true
+        end
+      end
+
       internal_data[key] = new_value
     end
   end,
 }
 
----@param initial_state table
----@param state_name string @ the name associated with the root of the state/initial_state
----@return StateFake
----@return StateCore
-local function create_state(initial_state, state_name)
-  local state = initial_state or {}
-  initial_hook(state, state_name or "state")
-  return state, state.__internal.core
+meta_util.register_meta(meta_id, meta)
+
+---@param state State
+---@param controller StateController
+local function add_controller(state, controller)
+  state.__internal.controllers[controller] = true
 end
 
----@param state StateFake
-local function restore_metatables(state)
-  for internal in next, state.__internal.core.internal_tables do
-    setmetatable(internal.fake, meta)
-  end
+---@param state State
+---@param controller StateController
+local function remove_controller(state, controller)
+  state.__internal.controllers[controller] = nil
+end
+
+---create a new state and add the given controller
+---@param controller StateController
+---@param state table|nil @ the initial state, defaults to {}
+---@return State
+local function create_state(controller, state)
+  state = hook(state or {})
+  add_controller(state, controller)
+  return state
+end
+
+---create a new state controller as a parent of states
+---@return StateController
+local function create_controller()
+  local controller = {
+    changed_state_lut = {},
+  }
+  return controller
 end
 
 -- undo the debugger being smart and using pairs, therefore __pairs for debugchildren
@@ -282,12 +253,17 @@ end
 ---@diagnostic enable: no-implicit-any
 
 return {
+  hook = hook,
   create_state = create_state,
-  restore_metatables = restore_metatables,
-  unhook_table = unhook_table,
+  create_controller = create_controller,
+  add_controller = add_controller,
+  remove_controller = remove_controller,
+  unhook = unhook,
   remove = remove,
   insert = insert,
   get_changes = get_changes,
+  clear_changes = clear_changes,
+  force_clear_changes = force_clear_changes,
 }
 
 -- fix semantics

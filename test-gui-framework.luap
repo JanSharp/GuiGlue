@@ -99,7 +99,7 @@ function foo.create(params)
   }
 end
 
-function foo:on_create()
+function foo:on_children_created()
   self.player.opened = self.elem
 end
 

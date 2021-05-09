@@ -36,7 +36,7 @@ function std_list:create_list_item(index, state_item)
   return list_item
 end
 
-function std_list:on_create()
+function std_list:on_children_created()
   for i, v in pairs(self.state) do
     self.list_items[i] = self:create_list_item(i, v)
   end

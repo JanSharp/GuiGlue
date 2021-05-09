@@ -87,20 +87,27 @@ end
 ---@diagnostic disable
 
 ---@param parent_element LuaGuiElement
----@param class_name string
----@param name? string
----@param params? table
+---@param child GuiChild
 ---@param parent? GuiInst
----@param core? GuiInst
 ---@return GuiInst
-local function create_internal(parent_element, class_name, name, params, parent, core)
+local function create_internal(parent_element, child, parent)
+  local class_name = child.class
   local class = classes[class_name]
   if not class then
     error("No class with the 'class_name' \""..class_name.."\" registered.")
   end
+
+  local on_pre_create = class.on_pre_create
+  if on_pre_create then
+    on_pre_create(child, parent)
+  end
+
+  local name = child.name
+  local core = child.core
+
   -- HACK: language server annotations being weird
   ---@typelist GuiInst, table<Any, Any>
-  local inst, data = class.create(params)
+  local inst, data = class.create(child)
   setmetatable(inst, class)
 
   ---@type GuiChild[]
@@ -119,7 +126,7 @@ local function create_internal(parent_element, class_name, name, params, parent,
   -- HACK: language server annotations being weird
   ---@type LuaGuiElement
   ---@diagnostic disable-next-line: undefined-field
-  local elem = parent_element.add(inst)
+  local elem = parent_element.add(inst) -- TODO: maybe add a way to use a different table than `inst` for the `add` call
   inst.elem = elem
   inst.tags = nil
   local id = tags.id
@@ -157,18 +164,22 @@ local function create_internal(parent_element, class_name, name, params, parent,
   end
 
   local on_elem_created = class.on_elem_created
-  if on_elem_created then on_elem_created(inst) end
+  if on_elem_created then
+    on_elem_created(inst)
+  end
 
   add_event_handlers(inst)
 
   if children then
     for _, child in pairs(children) do
-      create_internal(elem, child.class, child.name, child, inst, child.core)
+      create_internal(elem, child, inst)
     end
   end
 
-  local on_create = class.on_create
-  if on_create then on_create(inst) end
+  local on_children_created = class.on_children_created
+  if on_children_created then
+    on_children_created(inst)
+  end
 
   return inst
 end
@@ -180,14 +191,14 @@ end
 ---@param child GuiChild
 ---@return GuiInst
 local function create(parent_element, child)
-  return create_internal(parent_element, child.class, child.name, child, nil, child.core)
+  return create_internal(parent_element, child, nil)
 end
 
 ---@param inst GuiInst
 ---@param child GuiChild
 ---@return GuiInst
 local function add(inst, child)
-  return create_internal(inst.elem, child.class, child.name, child, inst, child.core)
+  return create_internal(inst.elem, child, inst)
 end
 
 ---cleans up and calls inst.on_destroy if it exists.

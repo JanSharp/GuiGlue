@@ -106,7 +106,7 @@ function std_frame:on_elem_created()
   self.player = game.get_player(self.elem.player_index)
 end
 
-function std_frame:on_create()
+function std_frame:on_children_created()
   -- FIXME: i don't like this
   ---@type string
   ---@diagnostic disable-next-line: undefined-field

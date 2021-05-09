@@ -1,7 +1,11 @@
 
+---@diagnostic disable: no-implicit-any
+---@diagnostic disable: undefined-field
+
 local enums = require("enums")
 local gui = require("gui")
 local state_util = require("state-util")
+local util = require("util")
 
 local classes = {} ---@type table<string, StdGuiClass>
 
@@ -20,37 +24,178 @@ local function on_init()
   gui.on_init()
 end
 
-local function create_state_controller()
-  return {} -- TODO
+
+---@generic T : table
+---@param t? T
+---@param target? T
+---@return T
+local function copy(t, target)
+  if not t then return target end
+  local result = target or {}
+  ---@type Any
+  for k, v in pairs(t) do
+    result[k] = v
+  end
+  return result
 end
 
-local function create_state(state_controller, state)
-  -- TODO: state_controller
-  return state_util.create_state(state)
+
+---@type StateController
+local function draw(controller)
+  for internal in next, controller.changed_state_lut do
+    local callback_insts = internal.callback_insts
+    if callback_insts then
+      for inst in next, callback_insts do
+        local on_state_dispatch = inst.on_state_dispatch
+        if on_state_dispatch then
+          -- TODO: get the name of the state
+          on_state_dispatch(inst, internal.fake)
+        end
+      end
+    end
+    state_util.clear_changes(internal.fake)
+  end
+  controller.changed_state_lut = {}
+end
+
+---register a gui inst to be notified when the given state changes
+---@param inst GuiInst
+---@param state State
+local function register_inst_to_state(inst, state)
+  local internal = state.__internal
+  local callback_insts = internal.callback_insts
+  if not callback_insts then
+    callback_insts = {}
+    internal.callback_insts = callback_insts
+  end
+  callback_insts[inst] = true
+end
+
+---deregister a gui inst to no longer be notified when the given state changes
+---@param inst GuiInst
+---@param state State
+local function deregister_inst_from_state(inst, state)
+  local internal = state.__internal
+  local callback_insts = internal.callback_insts
+  callback_insts[inst] = nil
 end
 
 
 
 ---@param structure GuiStructure
-local function register_class(structure)
-  local inst_prefab = {} ---@type GuiInst
-  local eval_in_create = {}
-  local dynamic_attribute_lut = {}
-  local funcs = {} ---@type table<string, function>
-  local children = structure.children
-  structure.children = nil
+---@param parent_class_name string
+---@param core_class_name string
+local function register_class(structure, parent_class_name, core_class_name)
+  local is_core ---@type boolean
+  local inst_prefab ---@type GuiInst
+  local state_names ---@type string[]
+  local eval_in_create ---@type table<string, fun(state?: State, ...): Any>
+  local dynamic_attribute_lut ---@type table<string, StdAttribute[]>
+  local funcs ---@type table<string, function>
+  local children ---@type table[]
+  local child_structures ---@type GuiStructure[] -- TODO: I think
+  local structures ---@type GuiStructure[]
+  local deriving_name_lut ---@type table<string, boolean>
 
-  local class_name = structure.class_name
-  local class = {class_name = class_name} ---@type GuiClass
+  local on_create
+  local on_elem_created
+
+  local class_name = parent_class_name
+    and parent_class_name.."-"..structure.class_name
+    or structure.class_name
+  structure.class_name = nil
+
+  local base_class
+  if structure.class then
+    base_class = classes[structure.class]
+    if not base_class then
+      error("REEEE")
+    end
+
+    is_core = base_class.is_core
+    inst_prefab = copy(base_class.inst_prefab)
+    state_names = copy(base_class.state_names)
+    eval_in_create = copy(base_class.eval_in_create)
+    dynamic_attribute_lut = util.copy(base_class.dynamic_attribute_lut)
+    funcs = copy(base_class.funcs)
+    children = copy(base_class.children)
+    structures = copy(base_class.structures)
+    deriving_name_lut = base_class.deriving_name_lut
+
+    on_create = base_class.on_create
+    on_elem_created = base_class.on_elem_created
+  else
+    inst_prefab = {}
+    eval_in_create = {}
+    dynamic_attribute_lut = {}
+    funcs = {}
+  end
+
+  if structure.is_core then
+    is_core = structure.is_core
+    structure.is_core = nil
+    deriving_name_lut = deriving_name_lut or {}
+  end
+  if structure.states then
+    state_names = structure.states
+    structure.states = nil
+  else
+    state_names = state_names or {}
+  end
+  if structure.children then
+    child_structures = structure.children
+    structure.children = nil
+    children = {}
+  end
+  if structure.structures then
+    structures = structure.structures
+    structure.structures = nil
+  end
+
+  if structure.on_create then
+    on_create = structure.on_create
+    structure.on_create = nil
+  end
+  if structure.on_elem_created then
+    on_elem_created = structure.on_elem_created
+    structure.on_elem_created = nil
+  end
+
+  if is_core then
+    deriving_name_lut[class_name] = true
+  end
+
+  ---@type GuiClass
+  local class = {
+    class_name = class_name,
+    is_core = is_core,
+    deriving_name_lut = deriving_name_lut,
+    base_class = base_class and base_class.framework_class or nil,
+    structures = structures, -- TODO: how to do this properly
+  }
   ---@type StdGuiClass
   local std_class = {
     class_name = class_name,
+    is_core = is_core,
+    core_class_name = core_class_name,
+    base_class = base_class,
     framework_class = class,
-    inst = inst_prefab,
+    inst_prefab = inst_prefab,
+    state_names = state_names,
     eval_in_create = eval_in_create,
     dynamic_attribute_lut = dynamic_attribute_lut,
     funcs = funcs,
+    children = children,
+    deriving_name_lut = deriving_name_lut,
+
+    on_create = on_create,
+    on_elem_created = on_elem_created,
   }
+
+  for func_name, func in pairs(funcs) do
+    class[func_name] = func
+  end
+
   classes[class_name] = std_class
 
   ---@param dynamic_attribute StdAttribute
@@ -85,74 +230,119 @@ local function register_class(structure)
     end
   end
 
-  function class.create(params)
-    local inst = {}
-    for k, v in pairs(inst_prefab) do
-      inst[k] = v -- TODO: deepcopy?
-    end
-    local state = params.state
-    for k, setter in pairs(eval_in_create) do
-      inst[k] = setter(state)
-    end
-    if children then
-      local inst_children = inst.children
-      for _, child in pairs(inst_children) do
-        child.core = inst
-      end
-    end
-    return inst, {state = state}
-  end
-
-  function class:draw()
-    local state = self.state
-    local changes, change_count = state_util.get_changes(state)
-    for i = 1, change_count do
-      local change = changes[i]
-      if change.type == enums.state_change.assigned then
-        local dynamic_attributes = dynamic_attribute_lut[change.key]
-        if dynamic_attributes then
-          local elem = self.elem
-          for _, dynamic_attribute in pairs(dynamic_attributes) do
-            elem[dynamic_attribute.attribute_name] = dynamic_attribute.setter(state)
-          end
+  if core_class_name then
+    function class.on_pre_create(child, parent)
+      while parent do
+        if parent.is_core and parent.deriving_name_lut[core_class_name] then
+          child.core = parent
+          break
         end
-      else
-        -- TODO
+        parent = parent.parent
+      end
+    end
+  end
+
+  local data = {}
+  function class.create(params)
+    local inst = {} ---@type GuiInst
+    ---@typelist string, Any
+    for attribute_name, value in pairs(inst_prefab) do
+      inst[attribute_name] = value -- TODO: deepcopy?
+    end
+
+    if on_create then
+      on_create(inst, params)
+    end
+
+    local controller = params.controller ---@type StateController
+    data.controller = controller
+    local states = {}
+    data.states = states
+    if state_names then
+      for i, state_name in next, state_names do
+        local state = params[state_name] ---@type State
+        if state then
+          state_util.add_controller(state, controller) -- make sure the state has this controller added
+        else
+          state = state_util.create_state(controller) ---@type State
+        end
+        data[state_name] = state
+        states[i] = state
+
+        register_inst_to_state(inst, state)
       end
     end
 
-    -- TODO
-    self.state.__internal.changes = {}
-    self.state.__internal.change_count = 0
+    local unpack = table.unpack
+    for attribute_name, setter in pairs(eval_in_create) do
+      inst[attribute_name] = setter(unpack(states))
+    end
+
+    return inst, data
   end
+
+  if on_elem_created then
+    function class:on_elem_created()
+      if on_elem_created then
+        on_elem_created(self)
+      end
+    end
+  end
+
+  if children then
+    local child = {}
+    function class:on_children_created()
+      child.controller = self.controller
+      ---@type GuiChild
+      for _, child_class in pairs(children) do
+        child.class = child_class.class_name
+        self:add(child)
+      end
+    end
+  end
+
+  -- function class:draw()
+  --   local state = self.state
+  --   local changes, change_count = state_util.get_changes(state)
+  --   for i = 1, change_count do
+  --     local change = changes[i]
+  --     if change.type == enums.state_change.assigned then
+  --       local dynamic_attributes = dynamic_attribute_lut[change.key]
+  --       if dynamic_attributes then
+  --         local elem = self.elem
+  --         for _, dynamic_attribute in pairs(dynamic_attributes) do
+  --           elem[dynamic_attribute.attribute_name] = dynamic_attribute.setter(state)
+  --         end
+  --       end
+  --     else
+  --       -- TODO
+  --     end
+  --   end
+
+  --   -- TODO
+  --   self.state.__internal.changes = {}
+  --   self.state.__internal.change_count = 0
+  -- end
 
   gui.register_class(class)
 
-  if children then
-    local inst_children = {}
-    inst_prefab.children = inst_children
-
-    ---@typelist integer, StdGuiClass
-    for i, child in pairs(children) do
-      child.class_name = class_name.."-"..child.class_name
-      local parent_class = classes[child.class]
-      if not parent_class then
-        error("REEEE")
-      end
-
-      for attribute_name, value in pairs(parent_class.inst) do
-        if attribute_name ~= "class_name" then
-          child[attribute_name] = value
-        end
-      end
-      -- TODO: copy the rest of the std class
-
-      inst_children[i] = {
-        class = child.class_name,
-        -- TODO: more data?
+  core_class_name = core_class_name or class_name
+  if child_structures then
+    ---@typelist integer, GuiStructure
+    for _, child in pairs(child_structures) do
+      children[#children+1] = {
+        class_name = class_name.."-"..child.class_name, -- HACK
       }
-
-      register_class(child)
+      register_class(child, class_name, core_class_name)
+    end
+  end
+  if structures then
+    ---@typelist integer, GuiStructure
+    for i, sub_structure in pairs(structures) do
+      structures[i] = {
+        class_name = class_name.."-"..sub_structure.class_name, -- HACK
+      }
+      register_class(sub_structure, class_name, core_class_name)
     end
   end
 end
@@ -160,9 +350,13 @@ end
 return {
   on_load = on_load,
   on_init = on_init,
-  create_state_controller = create_state_controller,
-  create_state = create_state,
+  draw = draw,
+  register_inst_to_state = register_inst_to_state,
+  deregister_inst_from_state = deregister_inst_from_state,
   register_class = register_class,
+
+  -- debug
+  classes = classes,
 }
 
 -- fix semantics

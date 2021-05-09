@@ -1,29 +1,93 @@
 
+local enums = require("enums")
 local gui = require("gui")
 local std_gui = require("std-gui")
 local attr = require("std-gui-attributes")
+local state_util = require("state-util")
+local meta_util = require("metatable-util")
 
 script.on_init(std_gui.on_init)
-script.on_load(std_gui.on_load)
+script.on_load(() => {
+  meta_util.restore_metatables()
+  std_gui.on_load()
+})
 
-local std_button = {
-  class_name = "std-button",
-  type = "button",
+local std_list = {
+  class_name = "std-list",
+  type = "flow",
+  is_core = true,
 
-  -- on_register = child =>
+  states = {"list_state"},
+
+  on_elem_created = self => {
+    local list_items = {}
+    self.list_items = list_items
+    for i, item_state in pairs(self.list_state) do
+      list_items[i] = self:create_list_item(i, item_state)
+    end
+  },
+
+  on_state_dispatch = (self, list_state, state_name) => {
+    self:update_children()
+  },
+
+  create_list_item = (self, index, item_state) => {
+    local list_item = self:add{
+      class = self.structures.list_item.class_name,
+      index = index,
+      item_state = item_state,
+      controller = self.controller,
+    }
+    return list_item
+  },
+
+  update_children = self => {
+    local changes, change_count, lowest_changed_index = state_util.get_changes(self.list_state)
+    local list_items = self.list_items
+    for i = 1, change_count do
+      local change = changes[i]
+      local key = change.key
+      local change_type = change.type
+      if change_type == enums.state_change.assigned then
+        list_items[key]:destroy()
+        list_items[key] = self:create_list_item(key, change.new)
+      elseif change_type == enums.state_change.inserted then
+        table.insert(list_items, key, self:create_list_item(key, change.new))
+      elseif change_type == enums.state_change.removed then
+        list_items[key]:destroy()
+        table.remove(list_items, key)
+      else
+        error("Scream.")
+      end
+    end
+  },
+
+  -- children = {
+  --   {
+  --     class_name = "lb",
+  --     type = "label",
+  --     caption = "foo",
+  --   },
+  -- },
+
+  -- on_derive = structure =>
   -- {
-  --   return {
-  --   }
+
   -- },
 }
 
-std_gui.register_class(std_button)
+std_gui.register_class(std_list)
 
 local foo = {
   class_name = "foo",
   type = "frame",
+  states = {"state", "player_state"},
+  is_core = true,
+
   direction = "vertical",
-  caption = attr.dynamic("number", state => ("Num: "..tostring(state.number))),
+  caption = attr.dynamic("state.number", (state, player_state) => ("Num: "..tostring(state.number)..", Age: "..player_state.age)),
+
+  -- on_children_created = self => (game.print("woooo")),
 
   ---@param event on_gui_click
   on_click = (self, event) => {
@@ -34,13 +98,13 @@ local foo = {
     elseif event.button == defines.mouse_button_type.middle then
       self.state.number = 0
     end
-    self:draw()
+    -- self:draw()
   },
 
   ---@param event on_gui_location_changed
   on_location_changed = (self, event) => {
     self.state.number = self.state.number + 1
-    self:draw()
+    -- self:draw()
   },
 
   -- TODO: support static and dynamic attributes in elem_mods and style_mods
@@ -53,14 +117,42 @@ local foo = {
 
   children = {
     {
-      class_name = "double",
-      class = "std-button",
-      caption = "Double Num",
+      class_name = "list",
+      class = "std-list",
+      direction = "vertical",
 
-      on_click = self => {
-        self.core.state.number = self.core.state.number * 2
-        self.core:draw()
+      structures = {
+        list_item = {
+          class_name = "item",
+          type = "label",
+          states = {"item_state"},
+          caption = attr.dynamic("item_state.caption", (item_state) => (item_state.caption or "nil")),
+        },
       },
+
+      -- on_pre_create = (child, parent) => {
+      --   -- pre create
+      -- },
+      on_create = (self, data) => {
+        -- pre gui element creation
+        data.list_state = data.core.state.list
+      },
+      -- on_elem_created = self => {
+      --   -- post gui element creation
+      --   self.list_state = self.core.state.list
+      --   std_gui.register_inst_to_state(self, self.list_state)
+      --   self.base_class.on_elem_created(self)
+      -- },
+      -- on_children_created = self => {
+      --   -- post children creation
+      -- },
+      -- on_destroy = self => {
+      --   -- post elem deletion
+      -- },
+
+      -- on_derive = () => {
+      --   -- not sure yet
+      -- },
     },
   },
 }
@@ -72,13 +164,37 @@ std_gui.register_class(foo)
 script.on_event(defines.events.on_player_created, function(event)
   local player = game.get_player(event.player_index)
 
-  local state_controller = std_gui.create_state_controller()
+  local controller = state_util.create_controller()
 
-  local state = std_gui.create_state(state_controller, {
-    number = 0,
+  local player_state = state_util.create_state(controller, {
+    player = player,
+    age = 100,
   })
 
-  gui.create(player.gui.screen, {class = "foo", state = state})
+  local state = state_util.create_state(controller, {
+    number = 0,
+    list = state_util.create_state(controller, {
+      state_util.create_state(controller, {caption = "hello"}),
+      state_util.create_state(controller, {caption = "world"}),
+    }),
+  })
+
+  gui.create(player.gui.screen, {
+    class = "foo",
+    controller = controller,
+    player_state = player_state,
+    state = state,
+  })
+
+  state.list[2] = state_util.create_state(controller, {caption = "help"})
+
+  state.list[2], state.list[1] = state.list[1], state.list[2]
+
+  std_gui.draw(controller)
+
+  state_util.remove(state.list, 1)
+
+  std_gui.draw(controller)
 end)
 
 -- fix semantics
