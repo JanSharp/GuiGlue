@@ -49,6 +49,7 @@
 ---@field class string @ class_name
 ---@field name string|nil
 ---@field core GuiInst|nil
+---@field index integer|nil @ Location in it's parent that the child element should slot into. By default, the child will be appended onto the end.
 
 ---@class BasicGuiInst : GuiInst
 ---@field core GuiInst|nil

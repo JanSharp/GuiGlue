@@ -54,7 +54,8 @@ local std_list = {
   },
 
   update_children = self => {
-    local changes, change_count, lowest_changed_index = state_util.get_changes(self.list_state)
+    local list_state = self.list_state
+    local changes, change_count, lowest_changed_index = state_util.get_changes(list_state)
     local list_items = self.list_items
     for i = 1, change_count do
       local change = changes[i]
@@ -62,7 +63,14 @@ local std_list = {
       local change_type = change.type
       if change_type == enums.state_change.assigned then
         list_items[key]:destroy()
-        list_items[key] = self:create_list_item(key, change.new)
+        local item_inst = self:create_list_item(key, change.new)
+        list_items[key] = item_inst
+        local set_index = item_inst.set_index
+        if set_index then
+          set_index(item_inst, key)
+        else
+          change.new.index = key
+        end
       elseif change_type == enums.state_change.inserted then
         table.insert(list_items, key, self:create_list_item(key, change.new))
       elseif change_type == enums.state_change.removed then
@@ -70,6 +78,17 @@ local std_list = {
         table.remove(list_items, key)
       else
         error("Scream.")
+      end
+    end
+    if lowest_changed_index then
+      for i = lowest_changed_index, #list_state do
+        local item_inst = list_items[i]
+        local set_index = item_inst.set_index
+        if set_index then
+          set_index(item_inst, i)
+        else
+          list_state[i].index = i
+        end
       end
     end
   },
@@ -133,6 +152,7 @@ local foo = {
           type = "flow",
           direction = "horizontal",
           states = {"state", "item_state"},
+          set_index = (self, index) => {self.item_state.index = index},
 
           children = {
             {
@@ -144,8 +164,8 @@ local foo = {
                 data.state = data.core.state
                 data.item_state = data.core.item_state
               },
-              caption = attr.dynamic({"state.number", "item_state.number"},
-                (state, item_state) => (tostring(state.number).." + "..tostring(item_state.number))
+              caption = attr.dynamic({"state.number", "item_state.number", "item_state.index"},
+                (state, item_state) => ("["..tostring(item_state.index).."]  "..tostring(state.number).." + "..tostring(item_state.number))
               ),
               on_click = (self, event) => {
                 self.state.number = self.state.number + self.item_state.number

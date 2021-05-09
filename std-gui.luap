@@ -50,13 +50,15 @@ local function draw(controller)
         local state_name = inst.state_name_map[state]
         local on_state_dispatch = inst.on_state_dispatch
         if on_state_dispatch then
+          -- TODO: allow modifications to this state in on_state_dispatch
+          -- other states can already be modified and it should work, just not the same exact one
           on_state_dispatch(inst, state, state_name)
         end
       end
     end
     state_util.clear_changes(state)
+    controller[internal] = nil
   end
-  controller.changed_state_lut = {}
 end
 
 ---register a gui inst to be notified when the given state changes

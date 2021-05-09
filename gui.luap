@@ -121,6 +121,7 @@ local function create_internal(parent_element, child, parent)
   inst.style_mods = nil
 
   inst.name = name
+  inst.index = child.index
   local tags = tags_prefab
   inst.tags = tags
   -- HACK: language server annotations being weird
