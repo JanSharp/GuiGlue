@@ -26,6 +26,7 @@ local std_list = {
     for i, item in pairs(self.list_state) do
       list_items[i] = self:create_list_item(i, item)
     end
+    self:update_indexes(1)
   },
 
   on_state_dispatch = (self, list_state, state_name) => {
@@ -51,6 +52,20 @@ local std_list = {
       controller = self.controller,
     }
     return list_item
+  },
+
+  update_indexes = (self, start_index) => {
+    local list_state = self.list_state
+    local list_items = self.list_items
+    for i = start_index, #list_state do
+      local item_inst = list_items[i]
+      local set_index = item_inst.set_index
+      if set_index then
+        set_index(item_inst, i)
+      else
+        list_state[i].index = i
+      end
+    end
   },
 
   update_children = self => {
@@ -81,15 +96,7 @@ local std_list = {
       end
     end
     if lowest_changed_index then
-      for i = lowest_changed_index, #list_state do
-        local item_inst = list_items[i]
-        local set_index = item_inst.set_index
-        if set_index then
-          set_index(item_inst, i)
-        else
-          list_state[i].index = i
-        end
-      end
+      self:update_indexes(lowest_changed_index)
     end
   },
 }
@@ -128,8 +135,8 @@ local foo = {
   -- TODO: support static and dynamic attributes in elem_mods and style_mods
   elem_mods = {auto_center = true},
   style_mods = {
-    width = 300,
-    height = 200,
+    width = 500,
+    height = 400,
   },
 
 
@@ -156,19 +163,71 @@ local foo = {
 
           children = {
             {
-              class_name = "btn",
-              type = "button",
+              class_name = "lb",
+              type = "label",
               -- TODO: how to improve this that copying state references is not needed
               states = {"state", "item_state"},
               on_create = (self, data) => {
                 data.state = data.core.state
                 data.item_state = data.core.item_state
               },
-              caption = attr.dynamic({"state.number", "item_state.number", "item_state.index"},
-                (state, item_state) => ("["..tostring(item_state.index).."]  "..tostring(state.number).." + "..tostring(item_state.number))
+              caption = attr.dynamic({"item_state.index"},
+                (state, item_state) => ("["..tostring(item_state.index).."]")
+              ),
+            },
+            {
+              class_name = "btn",
+              type = "button",
+              states = {"state", "item_state"},
+              on_create = (self, data) => {
+                data.state = data.core.state
+                data.item_state = data.core.item_state
+              },
+              caption = attr.dynamic({"state.number", "item_state.number"},
+                (state, item_state) => (tostring(state.number).." + "..tostring(item_state.number))
               ),
               on_click = (self, event) => {
                 self.state.number = self.state.number + self.item_state.number
+                self:draw()
+              },
+            },
+            {
+              class_name = "up",
+              type = "button",
+              states = {"state", "item_state"},
+              on_create = (self, data) => {
+                data.state = data.core.state
+                data.item_state = data.core.item_state
+              },
+              caption = "Move Up",
+              on_click = (self, event) => {
+                local list = self.state.list
+                local item = self.item_state
+                local index = item.index
+                if index == 1 then
+                  return
+                end
+                list[index], list[index - 1] = list[index - 1], list[index]
+                self:draw()
+              },
+            },
+            {
+              class_name = "down",
+              type = "button",
+              states = {"state", "item_state"},
+              on_create = (self, data) => {
+                data.state = data.core.state
+                data.item_state = data.core.item_state
+              },
+              caption = "Move Down",
+              on_click = (self, event) => {
+                local list = self.state.list
+                local item = self.item_state
+                local index = item.index
+                if index == #list then
+                  return
+                end
+                list[index], list[index + 1] = list[index + 1], list[index]
                 self:draw()
               },
             },
@@ -228,12 +287,12 @@ script.on_event(defines.events.on_player_created, function(event)
     state = state,
   })
 
-  state.list[2] = state_util.create_state(controller, {number = 10})
-  state.list[2], state.list[1] = state.list[1], state.list[2]
-  inst:draw()
+  -- state.list[2] = state_util.create_state(controller, {number = 10})
+  -- state.list[2], state.list[1] = state.list[1], state.list[2]
+  -- inst:draw()
 
-  state_util.insert(state.list, 1, state_util.create_state(controller, {number = 34}))
-  inst:draw()
+  -- state_util.insert(state.list, 1, state_util.create_state(controller, {number = 34}))
+  -- inst:draw()
 end)
 
 -- fix semantics
