@@ -84,9 +84,9 @@ local foo = {
   is_core = true,
 
   direction = "vertical",
-  caption = attr.dynamic("state.number", (state, player_state) => ("Num: "..tostring(state.number)..", Age: "..player_state.age)),
-
-  -- on_children_created = self => (game.print("woooo")),
+  caption = attr.dynamic({"state.number", "player_state.age"},
+    (state, player_state) => ("Num: "..tostring(state.number)..", Age: "..player_state.age)
+  ),
 
   ---@param event on_gui_click
   on_click = (self, event) => {
@@ -120,46 +120,53 @@ local foo = {
       class = "std-list",
       direction = "vertical",
 
-      structures = {
-        list_item = {
-          class_name = "item",
-          type = "label",
-          states = {"state", "item_state"},
-          caption = attr.dynamic("state.item", (state, item_state) => (state.item or "nil"--[[item_state.caption or "nil"]])),
-        },
+      on_create = (self, data) => {
+        data.list_state = data.core.state.list
       },
 
       get_states = (self, item) => (self.core.state, state_util.ensure_hook(item)),
 
-      -- on_pre_create = (child, parent) => {
-      --   -- pre create
-      -- },
-      on_create = (self, data) => {
-        -- pre gui element creation
-        data.list_state = data.core.state.list
-      },
-      -- on_elem_created = self => {
-      --   -- post gui element creation
-      --   self.list_state = self.core.state.list
-      --   std_gui.register_inst_to_state(self, self.list_state)
-      --   self.base_class.on_elem_created(self)
-      -- },
-      -- on_children_created = self => {
-      --   -- post children creation
-      -- },
-      -- on_destroy = self => {
-      --   -- post elem deletion
-      -- },
+      structures = {
+        list_item = {
+          class_name = "item",
+          type = "button",
+          states = {"state", "item_state"},
+          caption = attr.dynamic({"state.number", "item_state.number"},
+            (state, item_state) => (tostring(state.number).." + "..tostring(item_state.number))
+          ),
 
-      -- on_derive = () => {
-      --   -- not sure yet
-      -- },
+          on_click = (self, event) => {
+            self.state.number = self.state.number + self.item_state.number
+            self:draw()
+          },
+        },
+      },
     },
   },
 }
 
 std_gui.register_class(foo)
 
+
+-- on_pre_create = (child, parent) => {
+--   -- pre create
+-- },
+-- on_create = (self, data) => {
+--   -- pre gui element creation
+-- },
+-- on_elem_created = self => {
+--   -- post gui element creation
+-- },
+-- on_children_created = self => {
+--   -- post children creation
+-- },
+-- on_destroy = self => {
+--   -- post elem deletion
+-- },
+
+-- on_derive = () => {
+--   -- not sure yet
+-- },
 
 
 script.on_event(defines.events.on_player_created, function(event)
@@ -174,10 +181,9 @@ script.on_event(defines.events.on_player_created, function(event)
 
   local state = state_util.create_state(controller, {
     number = 0,
-    item = "hello",
     list = state_util.create_state(controller, {
-      state_util.create_state(controller, {caption = "hello"}),
-      state_util.create_state(controller, {caption = "world"}),
+      state_util.create_state(controller, {number = 3}),
+      state_util.create_state(controller, {number = 5}),
     }),
   })
 
@@ -188,14 +194,11 @@ script.on_event(defines.events.on_player_created, function(event)
     state = state,
   })
 
-  state.list[2] = state_util.create_state(controller, {caption = "help"})
+  state.list[2] = state_util.create_state(controller, {number = 10})
   state.list[2], state.list[1] = state.list[1], state.list[2]
   inst:draw()
 
-  state_util.insert(state.list, 1, state_util.create_state(controller, {caption = "foo, bar, baz"}))
-  inst:draw()
-
-  state.item = "bye"
+  state_util.insert(state.list, 1, state_util.create_state(controller, {number = 34}))
   inst:draw()
 end)
 

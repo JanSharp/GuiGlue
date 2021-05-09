@@ -2,21 +2,38 @@
 local enums = require("enums")
 
 ---@generic T
----@param reacts_to string
+---@param triggers string|string[]
 ---@param setter fun(state: State): T
 ---@return table
-local function dynamic(reacts_to, setter)
-  ---@type string
-  local state_name, field_name = reacts_to:match("^([^%.]+)%.([^%.]+)$")
-  if not state_name then
-    error("Expected reacts_to format `state_name.field_name`, got `"..reacts_to.."`.")
+local function dynamic(triggers, setter)
+  local transformed_triggers = {}
+
+  ---@param str string
+  ---@return StdAttributeTrigger
+  local function parse_trigger(str)
+    ---@type string
+    local state_name, field_name = str:match("^([^%.]+)%.([^%.]+)$")
+    if not state_name then
+      error("Expected reacts_to format `state_name.field_name`, got `"..str.."`.")
+    end
+    return {
+      state_name = state_name,
+      field_name = field_name,
+    }
+  end
+
+  if type(triggers) == "string" then
+    transformed_triggers[1] = parse_trigger(triggers)
+  else
+    for i, trigger in next, triggers do
+      transformed_triggers[i] = parse_trigger(trigger)
+    end
   end
 
   return {
     __std_gui = true,
     type = enums.std_gui_attribute.dynamic,
-    state_name = state_name,
-    field_name = field_name,
+    triggers = transformed_triggers,
     setter = setter,
   }
 end

@@ -39,8 +39,11 @@
 ---@field __std_gui boolean @ true
 ---@field type EnumStdGuiAttribute
 ---@field setter fun(state: State): Any
----@field state_name string|nil @ if this is dynamic, which state to react to
----@field field_name string|nil @ if this is dynamic, which field in the given state to react to
+---@field triggers StdAttributeTrigger[]|nil @ if this is dynamic defines which state changes trigger the setter to be called
+
+---@class StdAttributeTrigger
+---@field state_name string
+---@field field_name string
 
 ---@class GuiChild
 ---@field class string @ class_name
