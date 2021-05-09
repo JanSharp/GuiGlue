@@ -6,10 +6,17 @@ local enums = require("enums")
 ---@param setter fun(state: State): T
 ---@return table
 local function dynamic(reacts_to, setter)
+  ---@type string
+  local state_name, field_name = reacts_to:match("^([^%.]+)%.([^%.]+)$")
+  if not state_name then
+    error("Expected reacts_to format `state_name.field_name`, got `"..reacts_to.."`.")
+  end
+
   return {
     __std_gui = true,
     type = enums.std_gui_attribute.dynamic,
-    reacts_to = reacts_to,
+    state_name = state_name,
+    field_name = field_name,
     setter = setter,
   }
 end

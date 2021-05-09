@@ -38,6 +38,23 @@ local function hook(source)
   return source
 end
 
+---@param tab table
+---@return boolean @ wether the given table is hooked
+local function is_hooked(tab)
+  return tab.__meta_id == meta_id
+end
+
+---ensures the given table is hooked and returns the resulting state
+---@param tab table
+---@return State
+local function ensure_hook(tab)
+  if tab.__meta_id == meta_id then
+    return tab
+  else
+    return hook(tab)
+  end
+end
+
 ---@param fake StateFake
 local function unhook(fake)
   setmetatable(fake, nil)
@@ -254,6 +271,8 @@ end
 
 return {
   hook = hook,
+  is_hooked = is_hooked,
+  ensure_hook = ensure_hook,
   create_state = create_state,
   create_controller = create_controller,
   add_controller = add_controller,

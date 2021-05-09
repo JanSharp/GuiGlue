@@ -1,4 +1,6 @@
 
+---@diagnostic disable
+
 local enums = require("enums")
 local gui = require("gui")
 local std_gui = require("std-gui")
@@ -15,15 +17,14 @@ script.on_load(() => {
 local std_list = {
   class_name = "std-list",
   type = "flow",
-  is_core = true,
 
   states = {"list_state"},
 
   on_elem_created = self => {
     local list_items = {}
     self.list_items = list_items
-    for i, item_state in pairs(self.list_state) do
-      list_items[i] = self:create_list_item(i, item_state)
+    for i, item in pairs(self.list_state) do
+      list_items[i] = self:create_list_item(i, item)
     end
   },
 
@@ -31,11 +32,22 @@ local std_list = {
     self:update_children()
   },
 
-  create_list_item = (self, index, item_state) => {
+  create_list_item = (self, index, item) => {
+    local states
+    if self.get_states then
+      states = table.pack(self:get_states(item))
+      states.n = nil -- table.pack apparently does this
+    else
+      states = {
+        state_util.is_hooked(item)
+          and item
+          or state_util.create_state(self.controller, item)
+      }
+    end
     local list_item = self:add{
       class = self.structures.list_item.class_name,
       index = index,
-      item_state = item_state,
+      states = states,
       controller = self.controller,
     }
     return list_item
@@ -61,19 +73,6 @@ local std_list = {
       end
     end
   },
-
-  -- children = {
-  --   {
-  --     class_name = "lb",
-  --     type = "label",
-  --     caption = "foo",
-  --   },
-  -- },
-
-  -- on_derive = structure =>
-  -- {
-
-  -- },
 }
 
 std_gui.register_class(std_list)
@@ -98,13 +97,13 @@ local foo = {
     elseif event.button == defines.mouse_button_type.middle then
       self.state.number = 0
     end
-    -- self:draw()
+    self:draw()
   },
 
   ---@param event on_gui_location_changed
   on_location_changed = (self, event) => {
     self.state.number = self.state.number + 1
-    -- self:draw()
+    self:draw()
   },
 
   -- TODO: support static and dynamic attributes in elem_mods and style_mods
@@ -125,10 +124,12 @@ local foo = {
         list_item = {
           class_name = "item",
           type = "label",
-          states = {"item_state"},
-          caption = attr.dynamic("item_state.caption", (item_state) => (item_state.caption or "nil")),
+          states = {"state", "item_state"},
+          caption = attr.dynamic("state.item", (state, item_state) => (state.item or "nil"--[[item_state.caption or "nil"]])),
         },
       },
+
+      get_states = (self, item) => (self.core.state, state_util.ensure_hook(item)),
 
       -- on_pre_create = (child, parent) => {
       --   -- pre create
@@ -173,13 +174,14 @@ script.on_event(defines.events.on_player_created, function(event)
 
   local state = state_util.create_state(controller, {
     number = 0,
+    item = "hello",
     list = state_util.create_state(controller, {
       state_util.create_state(controller, {caption = "hello"}),
       state_util.create_state(controller, {caption = "world"}),
     }),
   })
 
-  gui.create(player.gui.screen, {
+  local inst = gui.create(player.gui.screen, {
     class = "foo",
     controller = controller,
     player_state = player_state,
@@ -187,14 +189,14 @@ script.on_event(defines.events.on_player_created, function(event)
   })
 
   state.list[2] = state_util.create_state(controller, {caption = "help"})
-
   state.list[2], state.list[1] = state.list[1], state.list[2]
+  inst:draw()
 
-  std_gui.draw(controller)
+  state_util.insert(state.list, 1, state_util.create_state(controller, {caption = "foo, bar, baz"}))
+  inst:draw()
 
-  state_util.remove(state.list, 1)
-
-  std_gui.draw(controller)
+  state.item = "bye"
+  inst:draw()
 end)
 
 -- fix semantics

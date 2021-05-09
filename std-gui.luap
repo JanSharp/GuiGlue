@@ -99,6 +99,8 @@ local function register_class(structure, parent_class_name, core_class_name)
 
   local on_create
   local on_elem_created
+  local on_state_dispatch
+  local on_destroy
 
   local class_name = parent_class_name
     and parent_class_name.."-"..structure.class_name
@@ -124,6 +126,8 @@ local function register_class(structure, parent_class_name, core_class_name)
 
     on_create = base_class.on_create
     on_elem_created = base_class.on_elem_created
+    on_state_dispatch = base_class.on_state_dispatch
+    on_destroy = base_class.on_destroy
   else
     inst_prefab = {}
     eval_in_create = {}
@@ -142,6 +146,9 @@ local function register_class(structure, parent_class_name, core_class_name)
   else
     state_names = state_names or {}
   end
+  for _, state_name in next, state_names do
+    dynamic_attribute_lut[state_name] = dynamic_attribute_lut[state_name] or {}
+  end
   if structure.children then
     child_structures = structure.children
     structure.children = nil
@@ -159,6 +166,14 @@ local function register_class(structure, parent_class_name, core_class_name)
   if structure.on_elem_created then
     on_elem_created = structure.on_elem_created
     structure.on_elem_created = nil
+  end
+  if structure.on_state_dispatch then
+    on_state_dispatch = structure.on_state_dispatch
+    structure.on_state_dispatch = nil
+  end
+  if structure.on_destroy then
+    on_destroy = structure.on_destroy
+    structure.on_destroy = nil
   end
 
   if is_core then
@@ -190,6 +205,8 @@ local function register_class(structure, parent_class_name, core_class_name)
 
     on_create = on_create,
     on_elem_created = on_elem_created,
+    on_state_dispatch = on_state_dispatch,
+    on_destroy = on_destroy,
   }
 
   for func_name, func in pairs(funcs) do
@@ -200,11 +217,12 @@ local function register_class(structure, parent_class_name, core_class_name)
 
   ---@param dynamic_attribute StdAttribute
   local function add_to_dynamic_lut(dynamic_attribute)
-    local reacts_to = dynamic_attribute.reacts_to
-    local dynamic_attributes = dynamic_attribute_lut[reacts_to]
+    local state_dynamic_attribute_lut = dynamic_attribute_lut[dynamic_attribute.state_name]
+    local field_name = dynamic_attribute.field_name
+    local dynamic_attributes = state_dynamic_attribute_lut[field_name]
     if not dynamic_attributes then
       dynamic_attributes = {}
-      dynamic_attribute_lut[reacts_to] = dynamic_attributes
+      state_dynamic_attribute_lut[field_name] = dynamic_attributes
     end
     dynamic_attributes[#dynamic_attributes+1] = dynamic_attribute
   end
@@ -256,22 +274,30 @@ local function register_class(structure, parent_class_name, core_class_name)
 
     local controller = params.controller ---@type StateController
     data.controller = controller
-    local states = {}
-    data.states = states
-    if state_names then
-      for i, state_name in next, state_names do
-        local state = params[state_name] ---@type State
-        if state then
-          state_util.add_controller(state, controller) -- make sure the state has this controller added
-        else
-          state = state_util.create_state(controller) ---@type State
-        end
-        data[state_name] = state
-        states[i] = state
-
+    local states = params.states
+    if states then
+      for _, state in next, states do
         register_inst_to_state(inst, state)
       end
+    else
+      states = {}
+      data.states = states
+      if state_names then
+        for i, state_name in next, state_names do
+          local state = params[state_name] ---@type State
+          if state then
+            state_util.add_controller(state, controller) -- make sure the state has this controller added
+          else
+            state = state_util.create_state(controller) ---@type State
+          end
+          data[state_name] = state
+          states[i] = state
+
+          register_inst_to_state(inst, state)
+        end
+      end
     end
+    data.states = states
 
     local unpack = table.unpack
     for attribute_name, setter in pairs(eval_in_create) do
@@ -283,9 +309,39 @@ local function register_class(structure, parent_class_name, core_class_name)
 
   if on_elem_created then
     function class:on_elem_created()
-      if on_elem_created then
-        on_elem_created(self)
+      on_elem_created(self)
+    end
+  end
+
+  function class:on_destroy()
+    for _, state in next, self.states do
+      deregister_inst_from_state(self, state)
+    end
+    if on_destroy then
+      on_destroy(self)
+    end
+  end
+
+  function class:on_state_dispatch(state, state_name)
+    local changes, change_count = state_util.get_changes(state)
+    local state_dynamic_attribute_lut = dynamic_attribute_lut[state_name or state_names[1]] -- HACK: state_names[1]
+    local unpack = table.unpack
+    for i = 1, change_count do
+      local change = changes[i]
+      if change.type == enums.state_change.assigned then
+        local dynamic_attributes = state_dynamic_attribute_lut[change.key]
+        if dynamic_attributes then
+          local elem = self.elem
+          for _, dynamic_attribute in pairs(dynamic_attributes) do
+            elem[dynamic_attribute.attribute_name] = dynamic_attribute.setter(unpack(self.states))
+          end
+        end
+      else
+        -- TODO
       end
+    end
+    if on_state_dispatch then
+      on_state_dispatch(self, state, state_name)
     end
   end
 
@@ -301,28 +357,9 @@ local function register_class(structure, parent_class_name, core_class_name)
     end
   end
 
-  -- function class:draw()
-  --   local state = self.state
-  --   local changes, change_count = state_util.get_changes(state)
-  --   for i = 1, change_count do
-  --     local change = changes[i]
-  --     if change.type == enums.state_change.assigned then
-  --       local dynamic_attributes = dynamic_attribute_lut[change.key]
-  --       if dynamic_attributes then
-  --         local elem = self.elem
-  --         for _, dynamic_attribute in pairs(dynamic_attributes) do
-  --           elem[dynamic_attribute.attribute_name] = dynamic_attribute.setter(state)
-  --         end
-  --       end
-  --     else
-  --       -- TODO
-  --     end
-  --   end
-
-  --   -- TODO
-  --   self.state.__internal.changes = {}
-  --   self.state.__internal.change_count = 0
-  -- end
+  function class:draw()
+    draw(self.controller)
+  end
 
   gui.register_class(class)
 

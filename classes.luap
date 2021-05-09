@@ -39,7 +39,8 @@
 ---@field __std_gui boolean @ true
 ---@field type EnumStdGuiAttribute
 ---@field setter fun(state: State): Any
----@field reacts_to string @ if this is dynamic, which state field to react to -- TODO
+---@field state_name string|nil @ if this is dynamic, which state to react to
+---@field field_name string|nil @ if this is dynamic, which field in the given state to react to
 
 ---@class GuiChild
 ---@field class string @ class_name
