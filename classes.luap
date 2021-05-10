@@ -68,7 +68,7 @@
 ---@field changes StateChange[]
 ---@field change_count integer
 ---@field fake StateFake
----@field lowest_changed_index integer|nil @ --TODO
+---@field lowest_changed_index integer|nil
 
 ---@class StateController
 ---@field changed_state_lut table<StateInternal, boolean>

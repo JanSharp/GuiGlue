@@ -36,8 +36,7 @@ local std_list = {
   create_list_item = (self, index, item) => {
     local states
     if self.get_states then
-      states = table.pack(self:get_states(item))
-      states.n = nil -- table.pack apparently does this
+      states = {self:get_states(item)}
     else
       states = {
         state_util.is_hooked(item)
@@ -165,7 +164,7 @@ local foo = {
             {
               class_name = "lb",
               type = "label",
-              -- TODO: how to improve this that copying state references is not needed
+              use_core_states = true,
               states = {"state", "item_state"},
               on_create = (self, data) => {
                 data.state = data.core.state
@@ -267,18 +266,18 @@ script.on_event(defines.events.on_player_created, function(event)
 
   local controller = state_util.create_controller()
 
-  local player_state = state_util.create_state(controller, {
+  local player_state = {
     player = player,
     age = 100,
-  })
+  }
 
-  local state = state_util.create_state(controller, {
+  local state = {
     number = 0,
-    list = state_util.create_state(controller, {
-      state_util.create_state(controller, {number = 3}),
-      state_util.create_state(controller, {number = 5}),
-    }),
-  })
+    list = {
+      {number = 3},
+      {number = 5},
+    },
+  }
 
   local inst = gui.create(player.gui.screen, {
     class = "foo",
@@ -287,12 +286,12 @@ script.on_event(defines.events.on_player_created, function(event)
     state = state,
   })
 
-  -- state.list[2] = state_util.create_state(controller, {number = 10})
-  -- state.list[2], state.list[1] = state.list[1], state.list[2]
-  -- inst:draw()
+  state.list[2] = {number = 10}
+  state.list[2], state.list[1] = state.list[1], state.list[2]
+  inst:draw()
 
-  -- state_util.insert(state.list, 1, state_util.create_state(controller, {number = 34}))
-  -- inst:draw()
+  state_util.insert(state.list, 1, {number = 34})
+  inst:draw()
 end)
 
 -- fix semantics

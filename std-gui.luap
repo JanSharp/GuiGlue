@@ -42,7 +42,8 @@ end
 
 ---@type StateController
 local function draw(controller)
-  for internal in next, controller.changed_state_lut do
+  local changed_state_lut = controller.changed_state_lut
+  for internal in next, changed_state_lut do
     local state = internal.fake
     local callback_insts = internal.callback_insts
     if callback_insts then
@@ -57,7 +58,7 @@ local function draw(controller)
       end
     end
     state_util.clear_changes(state)
-    controller[internal] = nil
+    changed_state_lut[internal] = nil
   end
 end
 
@@ -289,6 +290,7 @@ local function register_class(structure, parent_class_name, core_class_name)
         local state_name = state_names[i]
         data[state_name] = state
         state_name_map[state] = state_name
+        state_util.ensure_hook(state)
         register_inst_to_state(inst, state)
       end
     else
@@ -299,6 +301,7 @@ local function register_class(structure, parent_class_name, core_class_name)
           local state = params[state_name] ---@type State
           state_name_map[state] = state_name
           if state then
+            state_util.ensure_hook(state)
             state_util.add_controller(state, controller) -- make sure the state has this controller added
           else
             state = state_util.create_state(controller) ---@type State
@@ -349,8 +352,6 @@ local function register_class(structure, parent_class_name, core_class_name)
             elem[dynamic_attribute.attribute_name] = dynamic_attribute.setter(unpack(self.states))
           end
         end
-      else
-        -- TODO
       end
     end
     if on_state_dispatch then
