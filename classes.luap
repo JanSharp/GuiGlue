@@ -5,6 +5,10 @@
 
 ---@alias GuiData table<Any, Any>
 
+---@class GuiElementMods
+---@field elem_mods table<string, Any>|nil
+---@field style_mods table<string, Any>|nil
+
 ---@class GuiClassDefinitionBase
 ---@field class_name string
 ---transform `child`/`params` (for example it's `name` or `core`),
@@ -18,11 +22,9 @@
 ---@field create fun(params?: GuiCreateParams): GuiInstDefinition, GuiData?
 ---@field event_conditions table<string, EventConditionFun>
 
----@class GuiInstDefinition
+---@class GuiInstDefinition : GuiElementMods
 ---@field add_param LuaGuiElement.add_param
 ---@field children GuiInstDefinition[]|nil
----@field elem_mods table<string, Any>|nil
----@field style_mods table<string, Any>|nil
 
 ---@class GuiClass : GuiClassDefinition
 ---@field add fun(inst: GuiInst, child: GuiChild): GuiInst @ add a child to this instantce
@@ -52,7 +54,6 @@
 ---@class StdFrameworkClass : GuiClass, StdGuiStructureFunctions
 ---@field base_class StdFrameworkClass|nil
 ---@field structures string[]
----@field deriving_name_lut table<string, boolean>
 
 ---@class StdGuiClass
 ---@field class_name string
@@ -60,8 +61,6 @@
 ---@field framework_class GuiClass
 ---@field base_class StdGuiClass|nil
 ---@field state_names string[]|nil
----@field deriving_name_lut table<string, boolean>
----@field child_class_names string[]
 ---@field structure_names string[]
 
 ---@class StdGuiInst : GuiInst, StdFrameworkClass, table
@@ -72,10 +71,12 @@
 ---@field controller StateController
 ---@field states State[]
 
----@class StdGuiStructure : GuiClassDefinitionBase, StdGuiStructureFunctions
+---@class StdGuiStructure : GuiElementMods, GuiClassDefinitionBase, StdGuiStructureFunctions
 ---@field states string[]|nil @ names of states this class is going to use
 ---@field base_class string|nil
 ---@field structures StdGuiStructure[]|nil
+
+---@class StdGuiStructureAddParam : StdGuiStructure, LuaGuiElement.add_param
 
 
 ---@class StdAttribute
