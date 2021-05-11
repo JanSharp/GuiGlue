@@ -1,6 +1,6 @@
 
 ---@diagnostic disable: no-implicit-any
----@diagnostic disable: undefined-field
+---@d iagnostic disable: undefined-field
 
 local enums = require("enums")
 local gui = require("gui")
@@ -134,10 +134,10 @@ for _, special_field in next, special_field_names do
   special_field_name_lut[special_field] = true
 end
 
----@param structure GuiStructure
+---@param structure StdGuiStructure
 ---@param parent_class_name string
----@param core_class_name string
-local function register_class(structure, parent_class_name, core_class_name)
+---@param core_class StdGuiClass
+local function register_class(structure, parent_class_name, core_class)
 
   ---@generic T
   ---@param value? T
@@ -168,10 +168,10 @@ local function register_class(structure, parent_class_name, core_class_name)
   local base_class
   if structure.base_class then
     base_class = classes[structure.base_class]
-    structure.base_class = nil
     if not base_class then
       error("REEEE")
     end
+    structure.base_class = nil
 
     for k, v in next, base_class.structure do
       if not (structure[k] or do_not_inherit_field_name_lut[k]) then
@@ -201,24 +201,33 @@ local function register_class(structure, parent_class_name, core_class_name)
     deriving_name_lut[class_name] = true
   end
 
+  local use_core_states = structure.use_core_states
   local state_names = structure.states
   local dynamic_attribute_lut = {} ---@type table<string, StdAttribute[]>
+  if use_core_states then
+    if state_names then
+      local new_state_names = {}
+      copy(core_class.state_names, new_state_names)
+      append(state_names, new_state_names)
+      state_names = new_state_names
+    else
+      state_names = copy(core_class.state_names)
+    end
+  end
   if state_names then
     for _, state_name in next, state_names do
       dynamic_attribute_lut[state_name] = {}
     end
   end
 
-  ---@type GuiClass
-  local class = {
+  local class = new GuiClass{
     class_name = class_name,
     is_core = is_core,
     base_class = base_class and base_class.framework_class or nil,
     structures = structure_class_name_map,
     deriving_name_lut = deriving_name_lut,
   }
-  ---@type StdGuiClass
-  local std_class = {
+  local std_class = new StdGuiClass{
     class_name = class_name,
     structure = structure,
     base_class = base_class,
@@ -274,7 +283,8 @@ local function register_class(structure, parent_class_name, core_class_name)
   class.on_elem_created = structure.on_elem_created
   class.on_children_created = structure.on_children_created
 
-  if core_class_name then
+  if core_class then
+    local core_class_name = core_class.class_name
     function class.on_pre_create(child, parent)
       while parent do
         if parent.is_core and parent.deriving_name_lut[core_class_name] then
@@ -285,6 +295,8 @@ local function register_class(structure, parent_class_name, core_class_name)
       end
     end
   end
+
+  ---@narrow class StdGuiInst
 
   local on_create = structure.on_create
   local data = {}
@@ -304,7 +316,13 @@ local function register_class(structure, parent_class_name, core_class_name)
     local controller = params.controller ---@type StateController
     data.controller = controller
     local states = params.states
+    local core = params.core
     if states then
+      if use_core_states and core then
+        states = {}
+        copy(core.states, states)
+        append(params.states, states)
+      end
       for i, state in next, states do
         local state_name = state_names[i]
         data[state_name] = state
@@ -314,10 +332,15 @@ local function register_class(structure, parent_class_name, core_class_name)
       end
     else
       states = {}
+      if use_core_states and core then
+        for i, state in next, core.states do
+          params[state_names[i]] = state
+        end
+      end
       data.states = states
       if state_names then
         for i, state_name in next, state_names do
-          local state = params[state_name] ---@type State
+          local state = params[state_name] or {} ---@type State
           state_name_map[state] = state_name
           if state then
             state_util.ensure_hook(state)
@@ -396,24 +419,30 @@ local function register_class(structure, parent_class_name, core_class_name)
     draw(self.controller)
   end
 
-  core_class_name = (structure_is_core and class_name) or core_class_name or class_name
+  core_class = (structure_is_core and std_class) or core_class or std_class
   if structure.children then
     local len = #child_class_names
     ---@typelist integer, GuiStructure
     for i, child in next, structure.children do
-      register_class(child, class_name, core_class_name)
+      register_class(child, class_name, core_class)
       child_class_names[len + i] = child.class_name
     end
   end
   structure.children = nil
 
-  if child_class_names[1] then
+  local on_children_created = structure.on_children_created
+  if on_children_created or child_class_names[1] then
     local child = {}
     function class:on_children_created()
-      child.controller = self.controller
-      for _, child_class_name in next, child_class_names do
-        child.class = child_class_name
-        self:add(child)
+      if child_class_names[1] then
+        child.controller = self.controller
+        for _, child_class_name in next, child_class_names do
+          child.class = child_class_name
+          self:add(child)
+        end
+      end
+      if on_children_created then
+        on_children_created(self)
       end
     end
   end
@@ -423,7 +452,7 @@ local function register_class(structure, parent_class_name, core_class_name)
   if structure.structures then
     ---@typelist string, GuiStructure
     for structure_name, sub_structure in next, structure.structures do
-      register_class(sub_structure, class_name, core_class_name)
+      register_class(sub_structure, class_name, core_class)
       structure_class_name_map[structure_name] = sub_structure.class_name
     end
   end

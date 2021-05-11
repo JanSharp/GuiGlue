@@ -3,37 +3,80 @@
 
 ---@alias EventConditionFun fun(inst: GuiInst):boolean
 
----@class GuiInst : LuaGuiElement.add_param, GuiClass
----@field id integer
----@field name string|nil
----@field class string
----@field elem LuaGuiElement
----@field parent GuiInst
----@field core GuiInst|nil
----@field children GuiInst[]
+---@alias GuiData table<Any, Any>
+
+---@class GuiClassDefinitionBase
+---@field class_name string
+---transform `child`/`params` (for example it's `name` or `core`),
+---which is also the `params` table passed to `create`
+---@field on_pre_create fun(params: GuiCreateParams, parent?: GuiInst) @ optional
+---@field on_elem_created fun(inst: GuiInst) @ optional
+---@field on_children_created fun(inst: GuiInst) @ optional
+---@field on_destroy fun(inst: GuiInst) @ optional
+
+---@class GuiClassDefinition : GuiClassDefinitionBase
+---@field create fun(params?: GuiCreateParams): GuiInstDefinition, GuiData?
+---@field event_conditions table<string, EventConditionFun>
+
+---@class GuiInstDefinition
+---@field add_param LuaGuiElement.add_param
+---@field children GuiInstDefinition[]|nil
 ---@field elem_mods table<string, Any>|nil
 ---@field style_mods table<string, Any>|nil
 
----@class GuiClass
----@field class_name string
----transform `child` (for example it's `name` or `core`),
----which is also the `params` table passed to `create`
----@field on_pre_create fun(child: GuiChild, parent?: GuiInst)|nil
----@field create fun(params?: table): GuiInst, table<Any, Any>|nil
----@field on_elem_created fun(inst: GuiInst)|nil
----@field on_children_created fun(inst: GuiInst)|nil
----@field on_destroy fun(inst: GuiInst)|nil
----@field event_conditions table<string, EventConditionFun>
+---@class GuiClass : GuiClassDefinition
 ---@field add fun(inst: GuiInst, child: GuiChild): GuiInst @ add a child to this instantce
 ---@field destroy fun(inst: GuiInst) @ destroy this instance
 
----@class StdGuiClass : GuiStructure
+---@class GuiInst : GuiClass, table
+---@field id integer @ readonly
+---@field name string|nil
+---@field elem LuaGuiElement
+---@field parent GuiInst|nil
+---@field core GuiInst|nil
 
----@class GuiStructure
+---@class GuiChild
+---@field class string @ class_name
+---@field name string|nil
+---@field core GuiInst|nil
+---@field index integer|nil @ Location in it's parent that the child element should slot into. By default, the child will be appended onto the end.
+
+---@class GuiCreateParams : GuiChild, table
+
+
+---@class StdGuiStructureFunctions
+---@field get_children fun(self: StdGuiInst): StdGuiChild[] @ optional
+---@field on_create fun(self: StdGuiInst, params: GuiCreateParams) @ optional
+---@field on_state_dispatch fun(self: StdGuiInst, state: State, state_name: string) @ optional
+
+---@class StdFrameworkClass : GuiClass, StdGuiStructureFunctions
+---@field base_class StdFrameworkClass|nil
+---@field structures string[]
+---@field deriving_name_lut table<string, boolean>
+
+---@class StdGuiClass
 ---@field class_name string
+---@field structure StdGuiStructure
+---@field framework_class GuiClass
+---@field base_class StdGuiClass|nil
+---@field state_names string[]|nil
+---@field deriving_name_lut table<string, boolean>
+---@field child_class_names string[]
+---@field structure_names string[]
+
+---@class StdGuiInst : GuiInst, StdFrameworkClass, table
+---@field controller StateController
+---@field states State[]
+
+---@class StdGuiChild : GuiChild
+---@field controller StateController
+---@field states State[]
+
+---@class StdGuiStructure : GuiClassDefinitionBase, StdGuiStructureFunctions
 ---@field states string[]|nil @ names of states this class is going to use
----@field class string|nil @ parent class name used for children
----@field children GuiStructure[]|nil
+---@field base_class string|nil
+---@field structures StdGuiStructure[]|nil
+
 
 ---@class StdAttribute
 ---@field __std_gui boolean @ true
@@ -45,11 +88,6 @@
 ---@field state_name string
 ---@field field_name string
 
----@class GuiChild
----@field class string @ class_name
----@field name string|nil
----@field core GuiInst|nil
----@field index integer|nil @ Location in it's parent that the child element should slot into. By default, the child will be appended onto the end.
 
 ---@class BasicGuiInst : GuiInst
 ---@field core GuiInst|nil
@@ -57,17 +95,15 @@
 ---@field parent_event_names string[]
 
 
----@class StateFake : State
-
 ---@class State : table
 ---@field __internal StateInternal
 
 ---@class StateInternal
 ---@field controllers table<StateController, boolean>
----@field data table @ Any table keys or values are StateFakes
+---@field data table<Any, Any>
 ---@field changes StateChange[]
 ---@field change_count integer
----@field fake StateFake
+---@field fake State
 ---@field lowest_changed_index integer|nil
 
 ---@class StateController

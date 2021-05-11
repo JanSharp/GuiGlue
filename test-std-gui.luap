@@ -1,5 +1,6 @@
 
----@diagnostic disable
+---@diagnostic disable: no-implicit-any
+---@d iagnostic disable: undefined-field
 
 local enums = require("enums")
 local gui = require("gui")
@@ -7,6 +8,7 @@ local std_gui = require("std-gui")
 local attr = require("std-gui-attributes")
 local state_util = require("state-util")
 local meta_util = require("metatable-util")
+require("std-ordered-list")
 
 script.on_init(std_gui.on_init)
 script.on_load(() => {
@@ -14,95 +16,7 @@ script.on_load(() => {
   std_gui.on_load()
 })
 
-local std_list = {
-  class_name = "std-list",
-  type = "flow",
-
-  states = {"list_state"},
-
-  on_elem_created = self => {
-    local list_items = {}
-    self.list_items = list_items
-    for i, item in pairs(self.list_state) do
-      list_items[i] = self:create_list_item(i, item)
-    end
-    self:update_indexes(1)
-  },
-
-  on_state_dispatch = (self, list_state, state_name) => {
-    self:update_children()
-  },
-
-  create_list_item = (self, index, item) => {
-    local states
-    if self.get_states then
-      states = {self:get_states(item)}
-    else
-      states = {
-        state_util.is_hooked(item)
-          and item
-          or state_util.create_state(self.controller, item)
-      }
-    end
-    local list_item = self:add{
-      class = self.structures.list_item,
-      index = index,
-      states = states,
-      controller = self.controller,
-    }
-    return list_item
-  },
-
-  update_indexes = (self, start_index) => {
-    local list_state = self.list_state
-    local list_items = self.list_items
-    for i = start_index, #list_state do
-      local item_inst = list_items[i]
-      local set_index = item_inst.set_index
-      if set_index then
-        set_index(item_inst, i)
-      else
-        list_state[i].index = i
-      end
-    end
-  },
-
-  update_children = self => {
-    local list_state = self.list_state
-    local changes, change_count, lowest_changed_index = state_util.get_changes(list_state)
-    local list_items = self.list_items
-    for i = 1, change_count do
-      local change = changes[i]
-      local key = change.key
-      local change_type = change.type
-      if change_type == enums.state_change.assigned then
-        list_items[key]:destroy()
-        local item_inst = self:create_list_item(key, change.new)
-        list_items[key] = item_inst
-        local set_index = item_inst.set_index
-        if set_index then
-          set_index(item_inst, key)
-        else
-          change.new.index = key
-        end
-      elseif change_type == enums.state_change.inserted then
-        table.insert(list_items, key, self:create_list_item(key, change.new))
-      elseif change_type == enums.state_change.removed then
-        list_items[key]:destroy()
-        table.remove(list_items, key)
-      else
-        error("Scream.")
-      end
-    end
-    if lowest_changed_index then
-      self:update_indexes(lowest_changed_index)
-    end
-  },
-}
-
-std_gui.register_class(std_list)
-
-local foo = {
+local foo = new StdGuiStructure{
   class_name = "foo",
   type = "frame",
   states = {"state", "player_state"},
@@ -140,100 +54,124 @@ local foo = {
 
 
   children = {
-    {
+    new StdGuiStructure{
       class_name = "list",
-      base_class = "std-list",
+      base_class = "std-ordered-list",
+      is_core = true,
       direction = "vertical",
-
+      -- get_states = (self, item) => (self.core.state, state_util.ensure_hook(item)),
       on_create = (self, data) => {
         data.list_state = data.core.state.list
       },
 
-      get_states = (self, item) => (self.core.state, state_util.ensure_hook(item)),
-
       structures = {
-        list_item = {
-          class_name = "item",
-          is_core = true,
+        list_item = new StdGuiStructure{
+          class_name = "list_item",
           type = "flow",
           direction = "horizontal",
-          states = {"state", "item_state"},
-          set_index = (self, index) => {self.item_state.index = index},
-
+          is_core = true,
+          states = {"item_state"},
           children = {
-            {
+            new StdGuiStructure{
               class_name = "lb",
               type = "label",
               use_core_states = true,
-              states = {"state", "item_state"},
-              on_create = (self, data) => {
-                data.state = data.core.state
-                data.item_state = data.core.item_state
-              },
-              caption = attr.dynamic({"item_state.index"},
-                (state, item_state) => ("["..tostring(item_state.index).."]")
+              caption = attr.dynamic({"item_state.index", "item_state.name"},
+                item_state => (tostring(item_state.index)..": "..item_state.name)
               ),
-            },
-            {
-              class_name = "btn",
-              type = "button",
-              states = {"state", "item_state"},
-              on_create = (self, data) => {
-                data.state = data.core.state
-                data.item_state = data.core.item_state
-              },
-              caption = attr.dynamic({"state.number", "item_state.number"},
-                (state, item_state) => (tostring(state.number).." + "..tostring(item_state.number))
-              ),
-              on_click = (self, event) => {
-                self.state.number = self.state.number + self.item_state.number
-                self:draw()
-              },
-            },
-            {
-              class_name = "up",
-              type = "button",
-              states = {"state", "item_state"},
-              on_create = (self, data) => {
-                data.state = data.core.state
-                data.item_state = data.core.item_state
-              },
-              caption = "Move Up",
-              on_click = (self, event) => {
-                local list = self.state.list
-                local item = self.item_state
-                local index = item.index
-                if index == 1 then
-                  return
-                end
-                list[index], list[index - 1] = list[index - 1], list[index]
-                self:draw()
-              },
-            },
-            {
-              class_name = "down",
-              type = "button",
-              states = {"state", "item_state"},
-              on_create = (self, data) => {
-                data.state = data.core.state
-                data.item_state = data.core.item_state
-              },
-              caption = "Move Down",
-              on_click = (self, event) => {
-                local list = self.state.list
-                local item = self.item_state
-                local index = item.index
-                if index == #list then
-                  return
-                end
-                list[index], list[index + 1] = list[index + 1], list[index]
-                self:draw()
-              },
             },
           },
+          on_children_created = self => {
+            self:add(new StdGuiChild{
+              controller = self.controller,
+              class = self.core.structures.reorder_btn,
+            })
+          },
+          get_item_state = self => (self.item_state),
         },
       },
     },
+    -- {
+    --   class_name = "list",
+    --   base_class = "std-list",
+    --   direction = "vertical",
+
+    --   on_create = (self, data) => {
+    --     data.list_state = data.core.state.list
+    --   },
+
+    --   get_states = (self, item) => (self.core.state, state_util.ensure_hook(item)),
+
+    --   structures = {
+    --     list_item = {
+    --       class_name = "item",
+    --       is_core = true,
+    --       type = "flow",
+    --       direction = "horizontal",
+    --       states = {"state", "item_state"},
+    --       set_index = (self, index) => {self.item_state.index = index},
+
+    --       children = {
+    --         {
+    --           class_name = "lb",
+    --           type = "label",
+    --           use_core_states = true,
+    --           caption = attr.dynamic({"item_state.index"},
+    --             (state, item_state) => ("["..tostring(item_state.index).."]")
+    --           ),
+    --         },
+    --         {
+    --           class_name = "btn",
+    --           type = "button",
+    --           use_core_states = true,
+    --           caption = attr.dynamic({"state.number", "item_state.number"},
+    --             (state, item_state) => (tostring(state.number).." + "..tostring(item_state.number))
+    --           ),
+    --           on_click = (self, event) => {
+    --             self.state.number = self.state.number + self.item_state.number
+    --             self:draw()
+    --           },
+    --         },
+    --         {
+    --           class_name = "up",
+    --           type = "button",
+    --           use_core_states = true,
+    --           caption = "Move Up",
+    --           on_click = (self, event) => {
+    --             local list = self.state.list
+    --             local item = self.item_state
+    --             local index = item.index
+    --             if index == 1 then
+    --               return
+    --             end
+    --             list[index], list[index - 1] = list[index - 1], list[index]
+    --             self:draw()
+    --           },
+    --         },
+    --         {
+    --           class_name = "down",
+    --           type = "button",
+    --           states = {"state", "item_state"},
+    --           on_create = (self, data) => {
+    --             data.state = data.core.state
+    --             data.item_state = data.core.item_state
+    --           },
+    --           caption = "Move Down",
+    --           on_click = (self, event) => {
+    --             local list = self.state.list
+    --             local item = self.item_state
+    --             local index = item.index
+    --             if index == #list then
+    --               return
+    --             end
+    --             list[index], list[index + 1] = list[index + 1], list[index]
+    --             self:draw()
+    --           },
+    --         },
+    --       },
+    --     },
+    --   },
+    -- },
   },
 }
 
@@ -274,8 +212,16 @@ script.on_event(defines.events.on_player_created, function(event)
   local state = {
     number = 0,
     list = {
-      {number = 3},
-      {number = 5},
+      {name = "one"},
+      {name = "two"},
+      {name = "three"},
+      {name = "four"},
+      {name = "five"},
+      {name = "six"},
+      {name = "seven"},
+      {name = "eight"},
+      {name = "nine"},
+      {name = "ten"},
     },
   }
 
@@ -286,12 +232,12 @@ script.on_event(defines.events.on_player_created, function(event)
     state = state,
   })
 
-  state.list[2] = {number = 10}
-  state.list[2], state.list[1] = state.list[1], state.list[2]
-  inst:draw()
+  -- state.list[2] = {number = 10}
+  -- state.list[2], state.list[1] = state.list[1], state.list[2]
+  -- inst:draw()
 
-  state_util.insert(state.list, 1, {number = 34})
-  inst:draw()
+  -- state_util.insert(state.list, 1, {number = 34})
+  -- inst:draw()
 end)
 
 -- fix semantics
