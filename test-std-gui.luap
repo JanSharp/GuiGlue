@@ -45,7 +45,7 @@ local std_list = {
       }
     end
     local list_item = self:add{
-      class = self.structures.list_item.class_name,
+      class = self.structures.list_item,
       index = index,
       states = states,
       controller = self.controller,
@@ -142,7 +142,7 @@ local foo = {
   children = {
     {
       class_name = "list",
-      class = "std-list",
+      base_class = "std-list",
       direction = "vertical",
 
       on_create = (self, data) => {

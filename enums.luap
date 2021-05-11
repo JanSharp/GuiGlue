@@ -12,6 +12,7 @@ enums.state_change = {
 enums.std_gui_attribute = {
   static = 1,
   dynamic = 2,
+  overridden_nil = 3,
 }
 
 -- replaces numbers with tables with metamethods to display enum names instead of raw numbers

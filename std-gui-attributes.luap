@@ -49,9 +49,17 @@ local function static(setter)
   }
 end
 
+local function nil_override()
+  return {
+    __std_gui = true,
+    type = enums.std_gui_attribute.overridden_nil,
+  }
+end
+
 return {
   dynamic = dynamic,
   static = static,
+  nil_override = nil_override,
 }
 
 -- fix semantics
