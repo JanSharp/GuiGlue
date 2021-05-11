@@ -352,20 +352,40 @@ local function register_class(structure, parent_class_name, core_class_name)
   end
 
   local on_state_dispatch = structure.on_state_dispatch
+  local get_changes = state_util.get_changes
+  local enums_state_change_assigned = enums.state_change.assigned
+  local needs_update = {} ---@type StdAttribute[]
+  local needs_update_count = 0
+  for _, state_dynamic_attribute_lut in next, dynamic_attribute_lut do
+    for _, dynamic_attributes in next, state_dynamic_attribute_lut do
+      dynamic_attributes.count = #dynamic_attributes
+    end
+  end
   function class:on_state_dispatch(state, state_name)
-    local changes, change_count = state_util.get_changes(state)
+    local changes, change_count = get_changes(state)
     local state_dynamic_attribute_lut = dynamic_attribute_lut[state_name]
     for i = 1, change_count do
       local change = changes[i]
-      if change.type == enums.state_change.assigned then
+      if change.type == enums_state_change_assigned then
         local dynamic_attributes = state_dynamic_attribute_lut[change.key]
         if dynamic_attributes then
-          local elem = self.elem
-          for _, dynamic_attribute in pairs(dynamic_attributes) do
-            elem[dynamic_attribute.attribute_name] = dynamic_attribute.setter(unpack(self.states))
+          for j = 1, dynamic_attributes.count do
+            needs_update_count = needs_update_count + 1
+            needs_update[needs_update_count] = dynamic_attributes[j]
           end
         end
       end
+    end
+    if needs_update_count > 0 then
+      local elem = self.elem
+      local function run(...)
+        for i = 1, needs_update_count do
+          local dynamic_attribute = needs_update[i]
+          elem[dynamic_attribute.attribute_name] = dynamic_attribute.setter(...)
+        end
+      end
+      run(unpack(self.states))
+      needs_update_count = 0
     end
     if on_state_dispatch then
       on_state_dispatch(self, state, state_name)
