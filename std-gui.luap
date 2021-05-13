@@ -1,6 +1,6 @@
 
 ---@diagnostic disable: no-implicit-any
----@d iagnostic disable: undefined-field
+---@diagnostic disable: undefined-field
 
 local enums = require("enums")
 local gui = require("gui")
@@ -141,7 +141,9 @@ local function register_class(structure, parent_class_name)
   local eval_in_create = {} ---@type table<string, fun(state?: State, ...): Any>
   local structure_class_name_map = {} ---@type table<string, string>
 
-  local inst_prefab = {} ---@type GuiInst
+  local add_param = {} ---@type LuaGuiElement.add_param
+  local elem_mods ---@type ElemOrStyleMods
+  local style_mods ---@type ElemOrStyleMods
 
   local class_name = parent_class_name
     and parent_class_name.."-"..structure.class_name
@@ -231,8 +233,12 @@ local function register_class(structure, parent_class_name)
         elseif value.type == enums.std_gui_attribute.overridden_nil then
           structure[field_name] = nil
         end
+      elseif field_name == "elem_mods" then
+        elem_mods = value
+      elseif field_name == "style_mods" then
+        style_mods = value
       else
-        inst_prefab[field_name] = value
+        add_param[field_name] = value
       end
     end
   end
@@ -245,11 +251,12 @@ local function register_class(structure, parent_class_name)
   local on_create = structure.on_create
   local data = {}
   function class.create(params)
-    local inst = {} ---@type GuiInst
-    ---@typelist string, Any
-    for attribute_name, value in next, inst_prefab do
-      inst[attribute_name] = value -- TODO: deepcopy?
-    end
+    ---@type GuiInstDefinition
+    local inst = {
+      add_param = add_param,
+      elem_mods = elem_mods,
+      style_mods = style_mods,
+    }
 
     if on_create then
       on_create(inst, params)
@@ -291,7 +298,7 @@ local function register_class(structure, parent_class_name)
     data.states = states
 
     for attribute_name, setter in pairs(eval_in_create) do
-      inst[attribute_name] = setter(unpack(states))
+      add_param[attribute_name] = setter(unpack(states))
     end
 
     return inst, data

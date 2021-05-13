@@ -4,10 +4,11 @@
 ---@alias EventConditionFun fun(inst: GuiInst):boolean
 
 ---@alias GuiData table<Any, Any>
+---@alias ElemOrStyleMods table<string, Any>
 
 ---@class GuiElementMods
----@field elem_mods table<string, Any>|nil
----@field style_mods table<string, Any>|nil
+---@field elem_mods ElemOrStyleMods|nil
+---@field style_mods ElemOrStyleMods|nil
 
 ---@class GuiClassDefinitionBase
 ---@field class_name string

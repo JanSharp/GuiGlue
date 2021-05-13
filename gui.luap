@@ -51,7 +51,7 @@ end
 ---@param inst GuiInst
 local function add_event_handlers(inst)
   local id = inst.id
-  local class_name = inst.class
+  local class_name = inst.class_name
   for _, event_name in pairs(cached_class_events[class_name]) do
     event_handlers[event_name][id] = inst
   end
@@ -106,7 +106,7 @@ local function create_internal(parent_element, child, parent)
   local core = child.core
 
   -- HACK: language server annotations being weird
-  ---@typelist GuiInst, table<Any, Any>
+  ---@typelist GuiInstDefinition, GuiData
   local inst, data = class.create(child)
   setmetatable(inst, class)
 
@@ -115,25 +115,25 @@ local function create_internal(parent_element, child, parent)
   inst.children = {} -- removing the reference to children before parent_element.add,
   -- because children may cause recursive tables
 
+  local add_param = inst.add_param
+  inst.add_param = nil
   local elem_mods = inst.elem_mods
   inst.elem_mods = nil
   local style_mods = inst.style_mods
   inst.style_mods = nil
 
-  inst.name = name
-  inst.index = child.index
+  add_param.name = name
+  add_param.index = child.index
   local tags = tags_prefab
-  inst.tags = tags
+  add_param.tags = tags
   -- HACK: language server annotations being weird
   ---@type LuaGuiElement
   ---@diagnostic disable-next-line: undefined-field
-  local elem = parent_element.add(inst) -- TODO: maybe add a way to use a different table than `inst` for the `add` call
+  local elem = parent_element.add(add_param)
   inst.elem = elem
-  inst.tags = nil
   local id = tags.id
   inst.id = id
   tags_prefab.id = id + 1
-  inst.class = class_name
   insts[id] = inst
   if parent then
     inst.parent = parent
