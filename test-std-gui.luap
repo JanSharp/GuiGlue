@@ -18,25 +18,28 @@ script.on_load(() => {
 
 local foo = new StdGuiStructure{
   class_name = "foo",
-  type = "frame",
   states = {"state", "player_state"},
-  is_core = true,
 
-  direction = "vertical",
-  caption = attr.dynamic({"state.number", "player_state.age"},
-    (state, player_state) => ("Num: "..tostring(state.number)..", Age: "..player_state.age)
-  ),
+  elem = {
+    type = "frame",
+    direction = "vertical",
+    caption = attr.dynamic({"state.number", "player_state.age"},
+      (state, player_state) => ("Num: "..tostring(state.number)..", Age: "..player_state.age)
+    ),
+  },
 
-  ---@param event on_gui_click
-  on_click = (self, event) => {
-    if event.button == defines.mouse_button_type.left then
-      self.state.number = self.state.number + 1
-    elseif event.button == defines.mouse_button_type.right then
-      self.state.number = self.state.number - 1
-    elseif event.button == defines.mouse_button_type.middle then
-      self.state.number = 0
-    end
-    self:draw()
+  events = {
+    ---@param event on_gui_click
+    on_click = (self, event) => {
+      if event.button == defines.mouse_button_type.left then
+        self.state.number = self.state.number + 1
+      elseif event.button == defines.mouse_button_type.right then
+        self.state.number = self.state.number - 1
+      elseif event.button == defines.mouse_button_type.middle then
+        self.state.number = 0
+      end
+      self:draw()
+    },
   },
 
   -- ---@param event on_gui_location_changed
@@ -65,32 +68,80 @@ local foo = new StdGuiStructure{
       controller = self.controller,
       core = self,
       state = self.state,
-      my_state = {name = "second", modifier = 3},
+      my_state = {name = "second", modifier = 3, width = 300},
+    },
+    new StdGuiChild{
+      class = self.structures.sub_frame,
+      controller = self.controller,
+      core = self,
+      state = self.state,
     },
   }),
 
   structures = {
     btn = new StdGuiStructure{
       class_name = "btn",
-      type = "button",
       states = {"state", "my_state"},
-      caption = attr.dynamic({"my_state.name", "my_state.modifier"},
-        (_, my_state) => (my_state.name.." ["..my_state.modifier.."]")
-      ),
-      ---@param event on_gui_click
-      on_click = (self, event) => {
-        local state = self.state
-        if event.button == defines.mouse_button_type.left then
-          state.number = state.number * self.my_state.modifier
-          self:draw()
-        elseif event.button == defines.mouse_button_type.right then
-          state.number = state.number / self.my_state.modifier
-          self.my_state.modifier = self.my_state.modifier - 0.01
-          self:draw()
-        end
+      elem = {
+        type = "button",
+        caption = attr.dynamic({"my_state.name", "my_state.modifier"},
+          (_, my_state) => (my_state.name.." ["..my_state.modifier.."]")
+        ),
+      },
+      style_mods = {
+        width = attr.static((_, my_state) => (my_state.width or 0))
+      },
+      events = {
+        ---@param event on_gui_click
+        on_click = (self, event) => {
+          local state = self.state
+          if event.button == defines.mouse_button_type.left then
+            state.number = state.number * self.my_state.modifier
+            self:draw()
+          elseif event.button == defines.mouse_button_type.right then
+            state.number = state.number / self.my_state.modifier
+            self.my_state.modifier = self.my_state.modifier - 0.01
+            self:draw()
+          end
+        },
+      },
+    },
+    sub_frame = new StdGuiStructure{
+      class_name = "sub-frame",
+      states = {"state"},
+      elem = {
+        type = "frame",
+        style = "inside_deep_frame",
+      },
+      style_mods = {
+        width = attr.dynamic("state.number", state => (state.number * 2)),
+        height = attr.dynamic("state.number", state => (state.number * 1.5)),
       },
     },
   },
+
+  -- structures = {
+  --   btn = new StdGuiStructure{
+  --     class_name = "btn",
+  --     type = "button",
+  --     states = {"state", "my_state"},
+  --     caption = attr.dynamic({"my_state.name", "my_state.modifier"},
+  --       (_, my_state) => (my_state.name.." ["..my_state.modifier.."]")
+  --     ),
+  --     ---@param event on_gui_click
+  --     on_click = (self, event) => {
+  --       local state = self.state
+  --       if event.button == defines.mouse_button_type.left then
+  --         state.number = state.number * self.my_state.modifier
+  --         self:draw()
+  --       elseif event.button == defines.mouse_button_type.right then
+  --         state.number = state.number / self.my_state.modifier
+  --         self.my_state.modifier = self.my_state.modifier - 0.01
+  --         self:draw()
+  --       end
+  --     },
+  --   },
+  -- },
 
   -- children = {
   --   new StdGuiStructure{

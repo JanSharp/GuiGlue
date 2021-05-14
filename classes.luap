@@ -83,8 +83,13 @@
 ---@class StdAttribute
 ---@field __std_gui boolean @ true
 ---@field type EnumStdGuiAttribute
----@field setter fun(state: State): Any
+---@field setter fun(state: State, ...): Any
 ---@field triggers StdAttributeTrigger[]|nil @ if this is dynamic defines which state changes trigger the setter to be called
+
+---@class StdRuntimeAttribute
+---@field setter fun(state: State, ...): Any
+---@field attribute_name string
+---@field is_for_styles boolean
 
 ---@class StdAttributeTrigger
 ---@field state_name string

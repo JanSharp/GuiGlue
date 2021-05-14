@@ -2,8 +2,8 @@
 ---@diagnostic disable: no-implicit-any
 ---@diagnostic disable: undefined-field
 
-#local function main(debug)
-#if preprocessor.args.debug and not debug then return end
+#local function main(DEBUG)
+#if preprocessor.args.debug and not DEBUG then return end
 
 local enums = require("enums")
 local gui = require("gui")
@@ -105,7 +105,7 @@ end
 
 
 
-local special_function_names = {
+local special_event_names = {
   "on_create",
   "on_elem_created",
   "on_children_created",
@@ -116,21 +116,24 @@ local special_function_names = {
 }
 
 local special_field_names = {
+  "class_name",
   "base_class",
-  "is_core",
   "states",
-  "children",
+  "elem",
+  "elem_mods",
+  "style_mods",
+  "get_children",
   "structures",
+  "events",
 }
 
 local do_not_inherit_field_name_lut = {
   states = true,
   structures = true,
-  children = true,
 }
 
 local special_field_name_lut = {}
-for _, special_func in next, special_function_names do
+for _, special_func in next, special_event_names do
   special_field_name_lut[special_func] = true
 end
 for _, special_field in next, special_field_names do
@@ -141,12 +144,31 @@ end
 ---@param parent_class_name string
 local function register_class(structure, parent_class_name)
 
-  local eval_in_create = {} ---@type table<string, fun(state?: State, ...): Any>
+  structure.add_param = structure.elem
+  structure.elem = nil
+
+#if DEBUG then
+  print(structure.class_name)
+#end
+
   local structure_class_name_map = {} ---@type table<string, string>
 
-  local add_param = {} ---@type LuaGuiElement.add_param
+  local static_add_param = {} ---@type table<string, StdAttribute>
+  local static_elem_mods = {} ---@type table<string, StdAttribute>
+  local static_style_mods = {} ---@type table<string, StdAttribute>
+
+  local dynamic_add_param = {} ---@type table<string, StdAttribute>
+  local dynamic_elem_mods = {} ---@type table<string, StdAttribute>
+  local dynamic_style_mods = {} ---@type table<string, StdAttribute>
+
+  -- support StdAttributes
+  local add_param ---@type LuaGuiElement.add_param
   local elem_mods ---@type ElemOrStyleMods
   local style_mods ---@type ElemOrStyleMods
+
+  -- don't support StdAttributes
+  local events
+  local extra_class_data = {} -- TODO: considering nothing is using this it porobably makes sense to remove it
 
   local class_name = parent_class_name
     and parent_class_name.."-"..structure.class_name
@@ -161,6 +183,8 @@ local function register_class(structure, parent_class_name)
     end
     structure.base_class = nil
 
+    -- TODO support merging of nested tables
+    -- this is all kinds of wrong now
     for k, v in next, base_class.structure do
       if not (structure[k] or do_not_inherit_field_name_lut[k]) then
         structure[k] = util.copy(v)
@@ -204,45 +228,48 @@ local function register_class(structure, parent_class_name)
 
   classes[class_name] = std_class
 
-  ---@param dynamic_attribute StdAttribute
-  local function add_to_dynamic_lut(dynamic_attribute)
-    for _, trigger in next, dynamic_attribute.triggers do
-      local state_dynamic_attribute_lut = dynamic_attribute_lut[trigger.state_name]
-      local field_name = trigger.field_name
-      local dynamic_attributes = state_dynamic_attribute_lut[field_name]
-      if not dynamic_attributes then
-        dynamic_attributes = {}
-        state_dynamic_attribute_lut[field_name] = dynamic_attributes
+  local function parse_table_with_std_attributes(definition, static, dynamic)
+    for k, v in next, definition do
+      if type(v) == "table" and v.__std_gui then
+        ---@narrow v StdAttribute
+        if v.type == enums.std_gui_attribute.static then
+          static[k] = v
+        elseif v.type == enums.std_gui_attribute.dynamic then
+          dynamic[k] = v
+        end
       end
-      dynamic_attributes[#dynamic_attributes+1] = dynamic_attribute
     end
   end
+
+  add_param = structure.add_param
+  if add_param then
+    parse_table_with_std_attributes(add_param, static_add_param, dynamic_add_param)
+  end
+
+  elem_mods = structure.elem_mods
+  if elem_mods then
+    parse_table_with_std_attributes(elem_mods, static_elem_mods, dynamic_elem_mods)
+  end
+
+  style_mods = structure.style_mods
+  if style_mods then
+    parse_table_with_std_attributes(style_mods, static_style_mods, dynamic_style_mods)
+  end
+
+
+  events = structure.events
+  if events then
+    for name, handler in next, events do
+      class[name] = handler
+    end
+  end
+
 
   ---@typelist string, Any
   for field_name, value in next, structure do
     if not special_field_name_lut[field_name] then
-      local value_type = type(value)
-      if value_type == "function" then
-        ---@narrow value function
-        class[field_name] = value
-      elseif value_type == "table" and value.__std_gui then
-        ---@narrow value StdAttribute
-        value.attribute_name = field_name
-        if value.type == enums.std_gui_attribute.static then
-          eval_in_create[field_name] = value.setter
-        elseif value.type == enums.std_gui_attribute.dynamic then
-          eval_in_create[field_name] = value.setter
-          add_to_dynamic_lut(value)
-        elseif value.type == enums.std_gui_attribute.overridden_nil then
-          structure[field_name] = nil
-        end
-      elseif field_name == "elem_mods" then
-        elem_mods = value
-      elseif field_name == "style_mods" then
-        style_mods = value
-      else
-        add_param[field_name] = value
-      end
+      extra_class_data[field_name] = value
+      class[field_name] = value
     end
   end
 
@@ -300,9 +327,19 @@ local function register_class(structure, parent_class_name)
     end
     data.states = states
 
-    for attribute_name, setter in pairs(eval_in_create) do
-      add_param[attribute_name] = setter(unpack(states))
+    -- TODO: improve performance
+    local function eval_attributes(attributes, target)
+      for k, attribute in next, attributes do
+        target[k] = attribute.setter(unpack(states))
+      end
     end
+
+    eval_attributes(static_add_param, add_param)
+    eval_attributes(dynamic_add_param, add_param)
+    eval_attributes(static_elem_mods, elem_mods)
+    eval_attributes(dynamic_elem_mods, elem_mods)
+    eval_attributes(static_style_mods, style_mods)
+    eval_attributes(dynamic_style_mods, style_mods)
 
     return inst, data
   end
@@ -317,37 +354,85 @@ local function register_class(structure, parent_class_name)
     end
   end
 
+  ---@type table<string, table<string, StdRuntimeAttribute[]>>
+  ---table<state_name, table<field_name, StdRuntimeAttribute[]>>
+  local runtime_attribute_map_map = {}
+  for _, state_name in next, state_names do
+    runtime_attribute_map_map[state_name] = {}
+  end
+  -- i hate every bit of this but tbh it makes it less of a pain overall
+  local function add_or_create(t, k, v)
+    local sub_t = t[k]
+    if not sub_t then
+      sub_t = {n = 0}
+      t[k] = sub_t
+    end
+    local n = sub_t.n + 1
+    sub_t.n = n
+    sub_t[n] = v
+  end
+  local function add_to_runtime_attribute_map_map(attributes, is_for_styles)
+    for k, attribute in next, attributes do
+      for _, trigger in next, attribute.triggers do
+        add_or_create(runtime_attribute_map_map[trigger.state_name], trigger.field_name, {
+          attribute_name = k,
+          setter = attribute.setter,
+          is_for_styles = is_for_styles,
+        })
+      end
+    end
+  end
+  add_to_runtime_attribute_map_map(dynamic_add_param, false)
+  add_to_runtime_attribute_map_map(dynamic_elem_mods, false)
+  add_to_runtime_attribute_map_map(dynamic_style_mods, true)
+
   local on_state_dispatch = structure.on_state_dispatch
   local get_changes = state_util.get_changes
   local enums_state_change_assigned = enums.state_change.assigned
-  local needs_update = {} ---@type StdAttribute[]
+  local needs_update = {} ---@type StdRuntimeAttribute[]
   local needs_update_count = 0
-  for _, state_dynamic_attribute_lut in next, dynamic_attribute_lut do
-    for _, dynamic_attributes in next, state_dynamic_attribute_lut do
-      dynamic_attributes.count = #dynamic_attributes
-    end
-  end
   function class:on_state_dispatch(state, state_name)
     local changes, change_count = get_changes(state)
-    local state_dynamic_attribute_lut = dynamic_attribute_lut[state_name]
+    local runtime_attribute_map = runtime_attribute_map_map[state_name]
     for i = 1, change_count do
       local change = changes[i]
       if change.type == enums_state_change_assigned then
-        local dynamic_attributes = state_dynamic_attribute_lut[change.key]
-        if dynamic_attributes then
-          for j = 1, dynamic_attributes.count do
+        local runtime_attributes = runtime_attribute_map[change.key]
+        if runtime_attributes then
+          for j = 1, runtime_attributes.n do
             needs_update_count = needs_update_count + 1
-            needs_update[needs_update_count] = dynamic_attributes[j]
+            needs_update[needs_update_count] = runtime_attributes[j]
           end
         end
       end
     end
     if needs_update_count > 0 then
       local elem = self.elem
+      local style = elem.style ---@diagnostic disable-line: unused-local
       local function run(...)
         for i = 1, needs_update_count do
-          local dynamic_attribute = needs_update[i]
-          elem[dynamic_attribute.attribute_name] = dynamic_attribute.setter(...)
+          local runtime_attribute = needs_update[i]
+
+          #local function dynamic_set(target, ...)
+            #if DEBUG then
+              local value = runtime_attribute.setter(...)
+              local success, err = pcall(() => {$(target)[runtime_attribute.attribute_name] = value})
+              if not success then
+                local info = debug.getinfo(runtime_attribute.setter, "S")
+                error(info.short_src..":"..info.linedefined..": setter for `$(target)."
+                  ..runtime_attribute.attribute_name.."`: "..err)
+              end
+            #else
+              $(target)[runtime_attribute.attribute_name] = runtime_attribute.setter(...)
+            #end
+          #end
+
+          if runtime_attribute.is_for_styles then
+            #dynamic_set("style")
+          else
+            #dynamic_set("elem")
+          end
+
         end
       end
       run(unpack(self.states))
@@ -396,17 +481,17 @@ return {
   deregister_inst_from_state = deregister_inst_from_state,
   register_class = register_class,
 
-##if debug then
-  classes = classes,
-##end
+  ##if debug then
+    classes = classes,
+  ##end
 }
 
 #end
 
 if settings.startup["GuiGlue-debug"].value then
-#main(true)
+  #main(true)
 else
-#main(false)
+  #main(false)
 end
 
 -- fix semantics

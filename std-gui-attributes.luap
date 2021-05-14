@@ -1,11 +1,9 @@
 
 local enums = require("enums")
 
----@generic T
 ---@param triggers string|string[]
----@param setter fun(state: State): T
----@return table
-local function dynamic(triggers, setter)
+---@return StdAttributeTrigger[]
+local function transform_triggers(triggers)
   local transformed_triggers = {}
 
   ---@param str string
@@ -30,17 +28,25 @@ local function dynamic(triggers, setter)
     end
   end
 
-  return {
+  return transformed_triggers
+end
+
+---@generic T
+---@param triggers string|string[]
+---@param setter fun(state: State, ...): T
+---@return StdAttribute
+local function dynamic(triggers, setter)
+  return new StdAttribute{
     __std_gui = true,
     type = enums.std_gui_attribute.dynamic,
-    triggers = transformed_triggers,
+    triggers = transform_triggers(triggers),
     setter = setter,
   }
 end
 
 ---@generic T
----@param setter fun(state: State): T
----@return table
+---@param setter fun(state: State, ...): T
+---@return StdAttribute
 local function static(setter)
   return {
     __std_gui = true,
@@ -49,6 +55,7 @@ local function static(setter)
   }
 end
 
+---@return StdAttribute
 local function nil_override()
   return {
     __std_gui = true,
