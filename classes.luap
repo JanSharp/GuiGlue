@@ -117,4 +117,7 @@
 ---@field old Any|nil
 ---@field new Any|nil
 
+---@class Preprocessor
+preprocessor = {}
+
 -- fix semantics

@@ -2,6 +2,9 @@
 ---@diagnostic disable: no-implicit-any
 ---@diagnostic disable: undefined-field
 
+#local function main(debug)
+#if preprocessor.args.debug and not debug then return end
+
 local enums = require("enums")
 local gui = require("gui")
 local state_util = require("state-util")
@@ -393,8 +396,17 @@ return {
   deregister_inst_from_state = deregister_inst_from_state,
   register_class = register_class,
 
-  -- debug
+##if debug then
   classes = classes,
+##end
 }
+
+#end
+
+if settings.startup["GuiGlue-debug"].value then
+#main(true)
+else
+#main(false)
+end
 
 -- fix semantics

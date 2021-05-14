@@ -21,5 +21,23 @@
         "--auto-clean-up-target-dir",
       ],
     },
+    {
+      "label": "GuiGluePreprocessDebug",
+      "type": "process",
+      "options": {
+        "cwd": "C:/Dev/LuaPreprocessor",
+      },
+      "command": "lua54",
+      "args": [
+        "--", "main.lua",
+        "--project-name", "GuiGlue",
+        "--source-dir", "C:/Portable/Factorio/Modding/mods/GuiGlue",
+        "--source-extensions", ".luap",
+        "--target-dir", "C:/Portable/Factorio/Modding/mods/GuiGlue",
+        "--target-extension", ".lua",
+        "--auto-clean-up-target-dir",
+        "--debug",
+      ],
+    },
   ],
 }

@@ -1,0 +1,13 @@
+
+data:extend{
+  {
+    type = "bool-setting",
+    name = "GuiGlue-debug",
+    hidden = true,
+    setting_type = "startup",
+    default_value = false,
+    forced_value = $(preprocessor.args.debug and "true" or "nil"),
+  }
+}
+
+-- fix semantics

@@ -14,7 +14,7 @@
         "--load-scenario",
         "JanSharpDevEnv/NoBase",
       ],
-      "preLaunchTask": "GuiGluePreprocess",
+      "preLaunchTask": "GuiGluePreprocessDebug",
       "disableExtraMods": true,
       "adjustMods": {
         "minimal-no-base-mod": true,
