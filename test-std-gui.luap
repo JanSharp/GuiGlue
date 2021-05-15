@@ -2,12 +2,12 @@
 ---@diagnostic disable: no-implicit-any
 ---@d iagnostic disable: undefined-field
 
-local enums = require("enums")
-local gui = require("gui")
-local std_gui = require("std-gui")
-local attr = require("std-gui-attributes")
-local state_util = require("state-util")
--- require("std-ordered-list")
+local enums = require("__GuiGlue__.enums")
+local gui = require("__GuiGlue__.gui")
+local std_gui = require("__GuiGlue__.std-gui")
+local attr = require("__GuiGlue__.std-gui-attributes")
+local state_util = require("__GuiGlue__.state-util")
+-- require("__GuiGlue__.std-ordered-list")
 
 script.on_init(std_gui.on_init)
 script.on_load(std_gui.on_load)

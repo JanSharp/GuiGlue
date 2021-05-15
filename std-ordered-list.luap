@@ -2,10 +2,10 @@
 ---@diagnostic disable: no-implicit-any
 ---@diagnostic disable: undefined-field
 
-local std_gui = require("std-gui")
-local attr = require("std-gui-attributes")
-local state_util = require("state-util")
-local enums = require("enums")
+local std_gui = require("__GuiGlue__.std-gui")
+local attr = require("__GuiGlue__.std-gui-attributes")
+local state_util = require("__GuiGlue__.state-util")
+local enums = require("__GuiGlue__.enums")
 
 local std_list = {
   class_name = "std-list",

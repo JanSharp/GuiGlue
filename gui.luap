@@ -2,7 +2,7 @@
 ---@diagnostic disable: no-implicit-any
 ---@diagnostic disable: undefined-field
 
-local event_names = require("event-names")
+local event_names = require("__GuiGlue__.event-names")
 
 ---@type table<string, GuiClass>
 local classes = {}

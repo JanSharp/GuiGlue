@@ -1,5 +1,5 @@
 
-local enums = require("enums")
+local enums = require("__GuiGlue__.enums")
 
 ---@param triggers string|string[]
 ---@return StdAttributeTrigger[]

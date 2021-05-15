@@ -1,4 +1,4 @@
 
-require("std-styles")
+require("__GuiGlue__.std-styles")
 
 -- fix semantics

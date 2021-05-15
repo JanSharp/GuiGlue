@@ -1,6 +1,6 @@
 
-local meta_util = require("metatable-util")
-local enums = require("enums")
+local meta_util = require("__GuiGlue__.metatable-util")
+local enums = require("__GuiGlue__.enums")
 local state_change = enums.state_change
 
 local table_remove = table.remove
