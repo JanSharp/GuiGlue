@@ -30,35 +30,6 @@ local function on_init()
 end
 
 
----@generic T : table
----@param t? T
----@param target? T
----@return T
-local function copy(t, target)
-  if not t then return target end
-  local result = target or {}
-  ---@type Any
-  for k, v in pairs(t) do
-    result[k] = v
-  end
-  return result
-end
-
----@generic T : table
----@param t? T
----@param target? T
----@return T
-local function append(t, target)
-  if not t then return target end
-  local result = target or {}
-  ---@type Any
-  for _, v in pairs(t) do
-    result[#result+1] = v
-  end
-  return result
-end
-
-
 ---@type StateController
 local function draw(controller)
   local changed_state_lut = controller.changed_state_lut
@@ -105,6 +76,10 @@ end
 
 
 
+-- these comments describe how the different things behave
+-- when a class derives from another
+
+-- overridden
 local special_event_names = {
   "on_elem_created",
   "on_children_created",
@@ -115,16 +90,17 @@ local special_event_names = {
 }
 
 local special_field_names = {
-  "class_name",
-  "base_class",
-  "states",
-  "elem",
-  "elem_mods",
-  "style_mods",
-  "get_children",
-  "structures",
-  "events",
+  "class_name", -- ignored
+  "base_class", -- ignored
+  "states", -- merged
+  "add_param", -- merged
+  "elem_mods", -- merged
+  "style_mods", -- merged
+  "get_children", -- overridden
+  "structures", -- ignored
+  "events", -- merged
 }
+-- any additional data is also merged
 
 local do_not_inherit_field_name_lut = {
   states = true,
@@ -150,7 +126,7 @@ local function register_class(structure, parent_class_name)
   print(structure.class_name)
 #end
 
-  local structure_class_name_map = {} ---@type table<string, string>
+  local structure_class_name_map ---@type table<string, string>
 
   local static_add_param = {} ---@type table<string, StdAttribute>
   local static_elem_mods = {} ---@type table<string, StdAttribute>
@@ -178,36 +154,68 @@ local function register_class(structure, parent_class_name)
   if structure.base_class then
     base_class = classes[structure.base_class]
     if not base_class then
-      error("REEEE")
+      error("Unable to find `base_class` '"..base_class.."'.")
     end
-    structure.base_class = nil
 
-    -- TODO support merging of nested tables
-    -- this is all kinds of wrong now
-    for k, v in next, base_class.structure do
-      if not (structure[k] or do_not_inherit_field_name_lut[k]) then
-        structure[k] = util.copy(v)
+    local base_structure = base_class.structure
+
+    ---@param base? table @ from `base_class`
+    ---@param this? table @ from `structure`
+    ---@return table?
+    local function merge(base, this)
+      local result = util.copy(base)
+      if this then
+        result = result or {}
+        for k, v in next, this do
+          result[k] = v
+        end
+      end
+      return result
+    end
+
+    for _, field_name in next, {
+      "states",
+      "add_param",
+      "elem_mods",
+      "style_mods",
+      "events",
+    } do
+      structure[field_name] = merge(base_structure[field_name], structure[field_name])
+    end
+
+    for _, special_event_name in next, special_event_names do
+      if not structure[special_event_name] then
+        structure[special_event_name] = base_structure[special_event_name]
+      end
+    end
+    if not structure.get_children then
+      structure.get_children = base_structure.get_children
+    end
+
+    for field_name, value in next, base_class.extra_class_data do
+      if not structure[field_name] then
+        structure[field_name] = util.copy(value)
       end
     end
 
-    if base_class.state_names then
-      local states = copy(base_class.state_names)
-      if structure.states then
-        append(structure.states, states)
+    for k, v in next, base_structure do
+      if type(k) == "string" and type(v) == "function" then
+        structure["base_"..k] = v
       end
-      structure.states = states
     end
 
-    copy(base_class.structure_names, structure_class_name_map)
+    if base_structure.events and structure.events then
+      for k, v in next, base_structure.events do
+        structure.events["base_"..k] = v
+      end
+    end
+
+    structure_class_name_map = util.copy(base_class.structure_names)
+  else
+    structure_class_name_map = {}
   end
 
   local state_names = structure.states
-  local dynamic_attribute_lut = {} ---@type table<string, StdAttribute[]>
-  if state_names then
-    for _, state_name in next, state_names do
-      dynamic_attribute_lut[state_name] = {}
-    end
-  end
 
   local class = new GuiClass{
     class_name = class_name,
@@ -223,6 +231,7 @@ local function register_class(structure, parent_class_name)
     -- needed when inheriting
     state_names = state_names,
     structure_names = structure_class_name_map,
+    extra_class_data = extra_class_data,
   }
 
   classes[class_name] = std_class
@@ -273,7 +282,7 @@ local function register_class(structure, parent_class_name)
   end
 
   class.on_elem_created = structure.on_elem_created
-  class.on_children_created = structure.on_children_created
+  class.get_children = structure.get_children
 
   ---@narrow class StdGuiInst
 
@@ -448,6 +457,22 @@ local function register_class(structure, parent_class_name)
         on_children_created(self)
       end
     end
+  end
+
+  -- this causes generation of base_foo functions for all of
+  -- these functions whenever a class derives from this class
+  for _, special_event_name in next, special_event_names do
+    if not structure[special_event_name] then
+      structure[special_event_name] = () => {}
+    end
+  end
+  if not get_children then
+    structure.get_children = () => ({}) -- either this returns an empty table
+    -- or in on_children_created when adding children it has to check if the
+    -- return value from get_children is nil
+    -- because when inheriting a class that didn't define it's own get_children
+    -- this would be used, and as you can see, it would also be used by
+    -- on_children_created if the deriving class doesn't override it
   end
 
   gui.register_class(class)

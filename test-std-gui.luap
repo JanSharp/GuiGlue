@@ -48,7 +48,6 @@ local foo = new StdGuiStructure{
   --   self:draw()
   -- },
 
-  -- TODO: support static and dynamic attributes in elem_mods and style_mods
   elem_mods = {auto_center = true},
   style_mods = {
     width = 500,
@@ -119,155 +118,48 @@ local foo = new StdGuiStructure{
       },
     },
   },
-
-  -- structures = {
-  --   btn = new StdGuiStructure{
-  --     class_name = "btn",
-  --     type = "button",
-  --     states = {"state", "my_state"},
-  --     caption = attr.dynamic({"my_state.name", "my_state.modifier"},
-  --       (_, my_state) => (my_state.name.." ["..my_state.modifier.."]")
-  --     ),
-  --     ---@param event on_gui_click
-  --     on_click = (self, event) => {
-  --       local state = self.state
-  --       if event.button == defines.mouse_button_type.left then
-  --         state.number = state.number * self.my_state.modifier
-  --         self:draw()
-  --       elseif event.button == defines.mouse_button_type.right then
-  --         state.number = state.number / self.my_state.modifier
-  --         self.my_state.modifier = self.my_state.modifier - 0.01
-  --         self:draw()
-  --       end
-  --     },
-  --   },
-  -- },
-
-  -- children = {
-  --   new StdGuiStructure{
-  --     class_name = "list",
-  --     base_class = "std-ordered-list",
-  --     is_core = true,
-  --     direction = "vertical",
-  --     -- get_states = (self, item) => (self.core.state, state_util.ensure_hook(item)),
-  --     on_create = (self, data) => {
-  --       data.list_state = data.core.state.list
-  --     },
-
-  --     structures = {
-  --       list_item = new StdGuiStructure{
-  --         class_name = "list_item",
-  --         type = "flow",
-  --         direction = "horizontal",
-  --         is_core = true,
-  --         states = {"item_state"},
-  --         children = {
-  --           new StdGuiStructure{
-  --             class_name = "lb",
-  --             type = "label",
-  --             use_core_states = true,
-  --             caption = attr.dynamic({"item_state.index", "item_state.name"},
-  --               item_state => (tostring(item_state.index)..": "..item_state.name)
-  --             ),
-  --           },
-  --         },
-  --         on_children_created = self => {
-  --           self:add(new StdGuiChild{
-  --             controller = self.controller,
-  --             class = self.core.structures.reorder_btn,
-  --           })
-  --         },
-  --         get_item_state = self => (self.item_state),
-  --       },
-  --     },
-  --   },
-
-  --   -- {
-  --   --   class_name = "list",
-  --   --   base_class = "std-list",
-  --   --   direction = "vertical",
-
-  --   --   on_create = (self, data) => {
-  --   --     data.list_state = data.core.state.list
-  --   --   },
-
-  --   --   get_states = (self, item) => (self.core.state, state_util.ensure_hook(item)),
-
-  --   --   structures = {
-  --   --     list_item = {
-  --   --       class_name = "item",
-  --   --       is_core = true,
-  --   --       type = "flow",
-  --   --       direction = "horizontal",
-  --   --       states = {"state", "item_state"},
-  --   --       set_index = (self, index) => {self.item_state.index = index},
-
-  --   --       children = {
-  --   --         {
-  --   --           class_name = "lb",
-  --   --           type = "label",
-  --   --           use_core_states = true,
-  --   --           caption = attr.dynamic({"item_state.index"},
-  --   --             (state, item_state) => ("["..tostring(item_state.index).."]")
-  --   --           ),
-  --   --         },
-  --   --         {
-  --   --           class_name = "btn",
-  --   --           type = "button",
-  --   --           use_core_states = true,
-  --   --           caption = attr.dynamic({"state.number", "item_state.number"},
-  --   --             (state, item_state) => (tostring(state.number).." + "..tostring(item_state.number))
-  --   --           ),
-  --   --           on_click = (self, event) => {
-  --   --             self.state.number = self.state.number + self.item_state.number
-  --   --             self:draw()
-  --   --           },
-  --   --         },
-  --   --         {
-  --   --           class_name = "up",
-  --   --           type = "button",
-  --   --           use_core_states = true,
-  --   --           caption = "Move Up",
-  --   --           on_click = (self, event) => {
-  --   --             local list = self.state.list
-  --   --             local item = self.item_state
-  --   --             local index = item.index
-  --   --             if index == 1 then
-  --   --               return
-  --   --             end
-  --   --             list[index], list[index - 1] = list[index - 1], list[index]
-  --   --             self:draw()
-  --   --           },
-  --   --         },
-  --   --         {
-  --   --           class_name = "down",
-  --   --           type = "button",
-  --   --           states = {"state", "item_state"},
-  --   --           on_create = (self, data) => {
-  --   --             data.state = data.core.state
-  --   --             data.item_state = data.core.item_state
-  --   --           },
-  --   --           caption = "Move Down",
-  --   --           on_click = (self, event) => {
-  --   --             local list = self.state.list
-  --   --             local item = self.item_state
-  --   --             local index = item.index
-  --   --             if index == #list then
-  --   --               return
-  --   --             end
-  --   --             list[index], list[index + 1] = list[index + 1], list[index]
-  --   --             self:draw()
-  --   --           },
-  --   --         },
-  --   --       },
-  --   --     },
-  --   --   },
-  --   -- },
-  -- },
 }
 
 std_gui.register_class(foo)
 
+local bar = new StdGuiStructure{
+  class_name = "bar",
+  base_class = "foo",
+
+  get_children = self => {
+    local children = self:base_get_children()
+    children[#children+1] = new StdGuiChild{
+      class = self.structures.btn,
+      controller = self.controller,
+      core = self,
+      state = self.state,
+      my_state = {name = "from bar!", modifier = 10, width = 200},
+    }
+    return children
+  },
+
+  structures = {
+    btn = new StdGuiStructure{
+      class_name = "btn",
+      base_class = "foo-btn",
+
+      events = {
+        ---@param event on_gui_click
+        on_click = (self, event) => {
+          if self.base_on_click then
+            self:base_on_click(event)
+          end
+          if event.shift and event.button == defines.mouse_button_type.right then
+            self.my_state.modifier = self.my_state.modifier / 2
+          end
+          self:draw()
+        },
+      },
+    }
+  },
+}
+
+std_gui.register_class(bar)
 
 -- on_pre_create = (child, parent) => {
 --   -- pre create
@@ -282,6 +174,7 @@ std_gui.register_class(foo)
 --   -- post elem deletion
 -- },
 
+-- TODO: on_derive... not sure yet
 -- on_derive = () => {
 --   -- not sure yet
 -- },
@@ -313,12 +206,19 @@ script.on_event(defines.events.on_player_created, function(event)
     },
   }
 
-  local inst = gui.create(player.gui.screen, {
-    class = "foo",
+  gui.create(player.gui.screen, {
+    class = "bar",
     controller = controller,
     player_state = player_state,
     state = state,
   })
+
+  -- gui.create(player.gui.screen, {
+  --   class = "foo",
+  --   controller = controller,
+  --   player_state = player_state,
+  --   state = state,
+  -- })
 
   -- state.list[2] = {number = 10}
   -- state.list[2], state.list[1] = state.list[1], state.list[2]

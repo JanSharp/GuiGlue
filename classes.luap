@@ -62,6 +62,7 @@
 ---@field base_class StdGuiClass|nil
 ---@field state_names string[]|nil
 ---@field structure_names string[]
+---@field extra_class_data table
 
 ---@class StdGuiInst : GuiInst, StdFrameworkClass, table
 ---@field controller StateController
