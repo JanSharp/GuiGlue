@@ -1,4 +1,7 @@
 
+---@diagnostic disable: no-implicit-any
+---@diagnostic disable: undefined-field
+
 local event_names = require("event-names")
 
 ---@type table<string, GuiClass>
@@ -83,9 +86,6 @@ function restore_metatables()
   end
 end
 
--- HACK: language server being weird
----@diagnostic disable
-
 ---@param parent_element LuaGuiElement
 ---@param child GuiChild
 ---@param parent? GuiInst
@@ -105,7 +105,6 @@ local function create_internal(parent_element, child, parent)
   local name = child.name
   local core = child.core
 
-  -- HACK: language server annotations being weird
   ---@typelist GuiInstDefinition, GuiData
   local inst, data = class.create(child)
   setmetatable(inst, class)
@@ -126,9 +125,7 @@ local function create_internal(parent_element, child, parent)
   add_param.index = child.index
   local tags = tags_prefab
   add_param.tags = tags
-  -- HACK: language server annotations being weird
   ---@type LuaGuiElement
-  ---@diagnostic disable-next-line: undefined-field
   local elem = parent_element.add(add_param)
   inst.elem = elem
   local id = tags.id
@@ -184,9 +181,6 @@ local function create_internal(parent_element, child, parent)
 
   return inst
 end
-
--- HACK: language server being weird
----@diagnostic enable
 
 ---@param parent_element LuaGuiElement
 ---@param child GuiChild

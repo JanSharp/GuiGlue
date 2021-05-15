@@ -166,7 +166,6 @@ std_gui.register_class(bar)
 --   -- post elem deletion
 -- },
 
--- TODO: on_derive... not sure yet
 -- on_derive = () => {
 --   -- not sure yet
 -- },

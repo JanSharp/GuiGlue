@@ -82,7 +82,7 @@ local special_event_names = {
   "on_destroy",
 
   "on_state_dispatch",
-  "on_derive",
+  "on_derive", -- TODO: not sure about on_derivee and it's implementation if any
 }
 
 local special_field_names = {
