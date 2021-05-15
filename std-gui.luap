@@ -344,93 +344,97 @@ local function register_class(structure, parent_class_name)
     end
   end
 
-  ---@type table<string, table<string, StdRuntimeAttribute[]>>
-  ---table<state_name, table<field_name, StdRuntimeAttribute[]>>
-  local runtime_attribute_map_map = {}
-  for _, state_name in next, state_names do
-    runtime_attribute_map_map[state_name] = {}
-  end
-  -- i hate every bit of this but tbh it makes it less of a pain overall
-  local function add_or_create(t, k, v)
-    local sub_t = t[k]
-    if not sub_t then
-      sub_t = {n = 0}
-      t[k] = sub_t
+  if state_names then
+    ---@type table<string, table<string, StdRuntimeAttribute[]>>
+    ---table<state_name, table<field_name, StdRuntimeAttribute[]>>
+    local runtime_attribute_map_map = {}
+    for _, state_name in next, state_names do
+      runtime_attribute_map_map[state_name] = {}
     end
-    local n = sub_t.n + 1
-    sub_t.n = n
-    sub_t[n] = v
-  end
-  local function add_to_runtime_attribute_map_map(attributes, is_for_styles)
-    for k, attribute in next, attributes do
-      for _, trigger in next, attribute.triggers do
-        add_or_create(runtime_attribute_map_map[trigger.state_name], trigger.field_name, {
-          attribute_name = k,
-          setter = attribute.setter,
-          is_for_styles = is_for_styles,
-        })
+    -- i hate every bit of this but tbh it makes it less of a pain overall
+    local function add_or_create(t, k, v)
+      local sub_t = t[k]
+      if not sub_t then
+        sub_t = {n = 0}
+        t[k] = sub_t
       end
+      local n = sub_t.n + 1
+      sub_t.n = n
+      sub_t[n] = v
     end
-  end
-  add_to_runtime_attribute_map_map(dynamic_add_param, false)
-  add_to_runtime_attribute_map_map(dynamic_elem_mods, false)
-  add_to_runtime_attribute_map_map(dynamic_style_mods, true)
-
-  local on_state_dispatch = structure.on_state_dispatch
-  local get_changes = state_util.get_changes
-  local enums_state_change_assigned = enums.state_change.assigned
-  local needs_update = {} ---@type StdRuntimeAttribute[]
-  local needs_update_count = 0
-  function class:on_state_dispatch(state, state_name)
-    local changes, change_count = get_changes(state)
-    local runtime_attribute_map = runtime_attribute_map_map[state_name]
-    for i = 1, change_count do
-      local change = changes[i]
-      if change.type == enums_state_change_assigned then
-        local runtime_attributes = runtime_attribute_map[change.key]
-        if runtime_attributes then
-          for j = 1, runtime_attributes.n do
-            needs_update_count = needs_update_count + 1
-            needs_update[needs_update_count] = runtime_attributes[j]
-          end
+    local function add_to_runtime_attribute_map_map(attributes, is_for_styles)
+      for k, attribute in next, attributes do
+        for _, trigger in next, attribute.triggers do
+          add_or_create(runtime_attribute_map_map[trigger.state_name], trigger.field_name, {
+            attribute_name = k,
+            setter = attribute.setter,
+            is_for_styles = is_for_styles,
+          })
         end
       end
     end
-    if needs_update_count > 0 then
-      local elem = self.elem
-      local style = elem.style ---@diagnostic disable-line: unused-local
-      local function run(...)
-        for i = 1, needs_update_count do
-          local runtime_attribute = needs_update[i]
+    add_to_runtime_attribute_map_map(dynamic_add_param, false)
+    add_to_runtime_attribute_map_map(dynamic_elem_mods, false)
+    add_to_runtime_attribute_map_map(dynamic_style_mods, true)
 
-          #local function dynamic_set(target, ...)
-            #if DEBUG then
-              local value = runtime_attribute.setter(...)
-              local success, err = pcall(() => {$(target)[runtime_attribute.attribute_name] = value})
-              if not success then
-                local info = debug.getinfo(runtime_attribute.setter, "S")
-                error(info.short_src..":"..info.linedefined..": setter for `$(target)."
-                  ..runtime_attribute.attribute_name.."`: "..err)
-              end
-            #else
-              $(target)[runtime_attribute.attribute_name] = runtime_attribute.setter(...)
+    local on_state_dispatch = structure.on_state_dispatch
+    local get_changes = state_util.get_changes
+    local enums_state_change_assigned = enums.state_change.assigned
+    local needs_update = {} ---@type StdRuntimeAttribute[]
+    local needs_update_count = 0
+    function class:on_state_dispatch(state, state_name)
+      local changes, change_count = get_changes(state)
+      local runtime_attribute_map = runtime_attribute_map_map[state_name]
+      for i = 1, change_count do
+        local change = changes[i]
+        if change.type == enums_state_change_assigned then
+          local runtime_attributes = runtime_attribute_map[change.key]
+          if runtime_attributes then
+            for j = 1, runtime_attributes.n do
+              needs_update_count = needs_update_count + 1
+              needs_update[needs_update_count] = runtime_attributes[j]
+            end
+          end
+        end
+      end
+      if needs_update_count > 0 then
+        local elem = self.elem
+        local style = elem.style ---@diagnostic disable-line: unused-local
+        local function run(...)
+          for i = 1, needs_update_count do
+            local runtime_attribute = needs_update[i]
+
+            #local function dynamic_set(target, ...)
+              #if DEBUG then
+                local value = runtime_attribute.setter(...)
+                local success, err = pcall(() => {$(target)[runtime_attribute.attribute_name] = value})
+                if not success then
+                  local info = debug.getinfo(runtime_attribute.setter, "S")
+                  error(info.short_src..":"..info.linedefined..": setter for `$(target)."
+                    ..runtime_attribute.attribute_name.."`: "..err)
+                end
+              #else
+                $(target)[runtime_attribute.attribute_name] = runtime_attribute.setter(...)
+              #end
             #end
-          #end
 
-          if runtime_attribute.is_for_styles then
-            #dynamic_set("style")
-          else
-            #dynamic_set("elem")
+            if runtime_attribute.is_for_styles then
+              #dynamic_set("style")
+            else
+              #dynamic_set("elem")
+            end
+
           end
-
         end
+        run(unpack(self.states))
+        needs_update_count = 0
       end
-      run(unpack(self.states))
-      needs_update_count = 0
+      if on_state_dispatch then
+        on_state_dispatch(self, state, state_name)
+      end
     end
-    if on_state_dispatch then
-      on_state_dispatch(self, state, state_name)
-    end
+  else
+    class.on_state_dispatch = structure.on_state_dispatch
   end
 
   local get_children = structure.get_children
