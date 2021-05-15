@@ -305,7 +305,7 @@ local function register_class(structure, parent_class_name)
           state_util.ensure_hook(state)
         else
           -- TODO: possibly add state initializer functions
-          state = state_util.create_state() ---@type State
+          state = state_util.create() ---@type State
         end
         state_name_map[state] = state_name
         data[state_name] = state
