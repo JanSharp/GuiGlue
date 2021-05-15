@@ -1,5 +1,0 @@
-
--- require("__GuiGlue__.test-gui-framework")
-require("__GuiGlue__.test-std-gui")
-
--- fix semantics
