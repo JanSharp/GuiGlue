@@ -146,6 +146,8 @@ local function register_class(structure, parent_class_name)
     or structure.class_name
   structure.class_name = class_name
 
+  -- TODO: implement nil override
+
   local base_class
   if structure.base_class then
     base_class = classes[structure.base_class]
