@@ -6,7 +6,7 @@ data:extend{
     hidden = true,
     setting_type = "startup",
     default_value = false,
-    forced_value = $(preprocessor.args.debug and "true" or "nil"),
+    forced_value = $(preprocessor.args.debug and "true" or "false"),
   }
 }
 

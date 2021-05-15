@@ -94,11 +94,6 @@
 ---@field field_name string
 
 
----@class BasicGuiInst : GuiInst
----@field core GuiInst|nil
----@field name_for_events string|nil
----@field parent_event_names string[]
-
 
 ---@class State : table
 ---@field __internal StateInternal
