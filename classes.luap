@@ -68,7 +68,6 @@
 ---@field states State[]
 
 ---@class StdGuiChild : GuiChild
----@field states State[]
 
 ---@class StdGuiStructure : GuiElementMods, GuiClassDefinitionBase, StdGuiStructureFunctions
 ---@field states string[]|nil @ names of states this class is going to use
