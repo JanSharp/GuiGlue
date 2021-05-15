@@ -106,7 +106,6 @@ end
 
 
 local special_event_names = {
-  "on_create",
   "on_elem_created",
   "on_children_created",
   "on_destroy",
@@ -278,7 +277,6 @@ local function register_class(structure, parent_class_name)
 
   ---@narrow class StdGuiInst
 
-  local on_create = structure.on_create
   local data = {}
   function class.create(params)
     ---@type GuiInstDefinition
@@ -288,58 +286,48 @@ local function register_class(structure, parent_class_name)
       style_mods = style_mods,
     }
 
-    if on_create then
-      on_create(inst, params)
-    end
-
-    local state_name_map = {}
-    data.state_name_map = state_name_map
     local controller = params.controller ---@type StateController
     data.controller = controller
-    local states = params.states
-    if states then
-      for i, state in next, states do
-        local state_name = state_names[i]
-        data[state_name] = state
+    if state_names then
+      local state_name_map = {}
+      data.state_name_map = state_name_map
+      local states = {}
+      data.states = states
+      for i, state_name in next, state_names do
+        local state = params[state_name] ---@type State
+        if state then -- TODO: consider changing the way states are created and passed around
+          -- so that if a state is passed in neither of these 2 function calls are needed
+          state_util.ensure_hook(state)
+          state_util.add_controller(state, controller) -- make sure the state has this controller added
+        else
+          -- TODO: possibly add state initializer functions
+          state = state_util.create_state(controller) ---@type State
+        end
         state_name_map[state] = state_name
-        state_util.ensure_hook(state)
+        data[state_name] = state
+        states[i] = state
+
         register_inst_to_state(inst, state)
       end
-    else
-      states = {}
       data.states = states
-      if state_names then
-        for i, state_name in next, state_names do
-          local state = params[state_name] or {} ---@type State
-          state_name_map[state] = state_name
-          if state then
-            state_util.ensure_hook(state)
-            state_util.add_controller(state, controller) -- make sure the state has this controller added
-          else
-            state = state_util.create_state(controller) ---@type State
+
+      -- TODO: improve performance
+      local function run(...)
+        #local function eval_attributes(attributes, target, ...)
+          for k, attribute in next, $(attributes) do
+            $(target)[k] = attribute.setter(...)
           end
-          data[state_name] = state
-          states[i] = state
+        #end
 
-          register_inst_to_state(inst, state)
-        end
+        #eval_attributes("static_add_param", "add_param")
+        #eval_attributes("dynamic_add_param", "add_param")
+        #eval_attributes("static_elem_mods", "elem_mods")
+        #eval_attributes("dynamic_elem_mods", "elem_mods")
+        #eval_attributes("static_style_mods", "style_mods")
+        #eval_attributes("dynamic_style_mods", "style_mods")
       end
+      run(unpack(states))
     end
-    data.states = states
-
-    -- TODO: improve performance
-    local function eval_attributes(attributes, target)
-      for k, attribute in next, attributes do
-        target[k] = attribute.setter(unpack(states))
-      end
-    end
-
-    eval_attributes(static_add_param, add_param)
-    eval_attributes(dynamic_add_param, add_param)
-    eval_attributes(static_elem_mods, elem_mods)
-    eval_attributes(dynamic_elem_mods, elem_mods)
-    eval_attributes(static_style_mods, style_mods)
-    eval_attributes(dynamic_style_mods, style_mods)
 
     return inst, data
   end

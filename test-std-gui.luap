@@ -272,9 +272,6 @@ std_gui.register_class(foo)
 -- on_pre_create = (child, parent) => {
 --   -- pre create
 -- },
--- on_create = (self, data) => {
---   -- pre gui element creation
--- },
 -- on_elem_created = self => {
 --   -- post gui element creation
 -- },

@@ -49,7 +49,6 @@
 
 ---@class StdGuiStructureFunctions
 ---@field get_children fun(self: StdGuiInst): StdGuiChild[] @ optional
----@field on_create fun(self: StdGuiInst, params: GuiCreateParams) @ optional
 ---@field on_state_dispatch fun(self: StdGuiInst, state: State, state_name: string) @ optional
 
 ---@class StdFrameworkClass : GuiClass, StdGuiStructureFunctions
