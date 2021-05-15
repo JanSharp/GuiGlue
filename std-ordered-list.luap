@@ -34,14 +34,13 @@ local std_list = {
       states = {
         state_util.is_hooked(item)
           and item
-          or state_util.create_state(self.controller, item)
+          or state_util.create(item)
       }
     end
     local list_item = self:add{
       class = self.structures.list_item,
       index = index,
       states = states,
-      controller = self.controller,
     }
     return list_item
   },
@@ -132,7 +131,7 @@ local ordered_list = {
           state.picked_up_btn.picked_up = nil
           state.picked_up_btn = nil
         end
-        self:draw()
+        std_gui.draw()
       },
     },
   },

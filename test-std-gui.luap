@@ -7,14 +7,10 @@ local gui = require("gui")
 local std_gui = require("std-gui")
 local attr = require("std-gui-attributes")
 local state_util = require("state-util")
-local meta_util = require("metatable-util")
 -- require("std-ordered-list")
 
 script.on_init(std_gui.on_init)
-script.on_load(() => {
-  meta_util.restore_metatables()
-  std_gui.on_load()
-})
+script.on_load(std_gui.on_load)
 
 local foo = new StdGuiStructure{
   class_name = "foo",
@@ -38,14 +34,14 @@ local foo = new StdGuiStructure{
       elseif event.button == defines.mouse_button_type.middle then
         self.state.number = 0
       end
-      self:draw()
+      std_gui.draw()
     },
   },
 
   -- ---@param event on_gui_location_changed
   -- on_location_changed = (self, event) => {
   --   self.state.number = self.state.number + 1
-  --   self:draw()
+  --   std_gui.draw()
   -- },
 
   elem_mods = {auto_center = true},
@@ -57,21 +53,18 @@ local foo = new StdGuiStructure{
   get_children = self => ({
     new StdGuiChild{
       class = self.structures.btn,
-      controller = self.controller,
       core = self,
       state = self.state,
       my_state = {name = "first", modifier = 2},
     },
     new StdGuiChild{
       class = self.structures.btn,
-      controller = self.controller,
       core = self,
       state = self.state,
       my_state = {name = "second", modifier = 3, width = 300},
     },
     new StdGuiChild{
       class = self.structures.sub_frame,
-      controller = self.controller,
       core = self,
       state = self.state,
     },
@@ -96,11 +89,11 @@ local foo = new StdGuiStructure{
           local state = self.state
           if event.button == defines.mouse_button_type.left then
             state.number = state.number * self.my_state.modifier
-            self:draw()
+            std_gui.draw()
           elseif event.button == defines.mouse_button_type.right then
             state.number = state.number / self.my_state.modifier
             self.my_state.modifier = self.my_state.modifier - 0.01
-            self:draw()
+            std_gui.draw()
           end
         },
       },
@@ -130,7 +123,6 @@ local bar = new StdGuiStructure{
     local children = self:base_get_children()
     children[#children+1] = new StdGuiChild{
       class = self.structures.btn,
-      controller = self.controller,
       core = self,
       state = self.state,
       my_state = {name = "from bar!", modifier = 10, width = 200},
@@ -152,7 +144,7 @@ local bar = new StdGuiStructure{
           if event.shift and event.button == defines.mouse_button_type.right then
             self.my_state.modifier = self.my_state.modifier / 2
           end
-          self:draw()
+          std_gui.draw()
         },
       },
     }
@@ -183,8 +175,6 @@ std_gui.register_class(bar)
 script.on_event(defines.events.on_player_created, function(event)
   local player = game.get_player(event.player_index)
 
-  local controller = state_util.create_controller()
-
   local player_state = {
     player = player,
     age = 100,
@@ -208,24 +198,22 @@ script.on_event(defines.events.on_player_created, function(event)
 
   gui.create(player.gui.screen, {
     class = "bar",
-    controller = controller,
     player_state = player_state,
     state = state,
   })
 
   -- gui.create(player.gui.screen, {
   --   class = "foo",
-  --   controller = controller,
   --   player_state = player_state,
   --   state = state,
   -- })
 
   -- state.list[2] = {number = 10}
   -- state.list[2], state.list[1] = state.list[1], state.list[2]
-  -- inst:draw()
+  -- std_gui.draw()
 
   -- state_util.insert(state.list, 1, {number = 34})
-  -- inst:draw()
+  -- std_gui.draw()
 end)
 
 -- fix semantics

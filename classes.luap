@@ -65,11 +65,9 @@
 ---@field extra_class_data table
 
 ---@class StdGuiInst : GuiInst, StdFrameworkClass, table
----@field controller StateController
 ---@field states State[]
 
 ---@class StdGuiChild : GuiChild
----@field controller StateController
 ---@field states State[]
 
 ---@class StdGuiStructure : GuiElementMods, GuiClassDefinitionBase, StdGuiStructureFunctions
@@ -106,15 +104,11 @@
 ---@field __internal StateInternal
 
 ---@class StateInternal
----@field controllers table<StateController, boolean>
 ---@field data table<Any, Any>
 ---@field changes StateChange[]
 ---@field change_count integer
 ---@field fake State
 ---@field lowest_changed_index integer|nil
-
----@class StateController
----@field changed_state_lut table<StateInternal, boolean>
 
 ---@class StateChange
 ---@field type EnumStateChange

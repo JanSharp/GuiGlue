@@ -9,12 +9,29 @@ local table_insert = table.insert
 local meta_id = "state_6674114660568425"
 local meta
 
+local changed_state_lut ---@type table<State, boolean>
+
+local function on_load()
+  changed_state_lut = global.__state_util.changed_state_lut
+  meta_util.restore_metatables()
+end
+
+local function on_init()
+  changed_state_lut = {}
+  global.__state_util = {
+    changed_state_lut = changed_state_lut,
+  }
+end
+
+local function get_changed_state_lut()
+  return changed_state_lut
+end
+
 ---@param source table
 ---@return State @ the table source gets modified to become this return value
 local function hook(source)
   local internal_data = {}
   local internal = { ---@type StateInternal
-    controllers = {},
     data = internal_data,
     -- lowest_changed_index = nil,
     changes = {},
@@ -55,7 +72,7 @@ local function ensure_hook(tab)
   end
 end
 
----@param fake StateFake
+---@param fake State
 local function unhook(fake)
   setmetatable(fake, nil)
   -- move data back
@@ -67,7 +84,7 @@ local function unhook(fake)
   fake.__meta_id = nil
 end
 
----@param fake_list StateFake
+---@param fake_list State
 ---@param pos integer
 ---@return Any @ the removed value
 local function remove(fake_list, pos)
@@ -90,16 +107,12 @@ local function remove(fake_list, pos)
     old = data[pos], ---@type Any
   }
 
-  if change_count == 1 then
-    for controller in next, internal.controllers do
-      controller.changed_state_lut[internal] = true
-    end
-  end
+  changed_state_lut[fake_list] = true
 
   return table_remove(data, pos)
 end
 
----@param fake_list StateFake
+---@param fake_list State
 ---@param pos integer
 ---@param value Any
 ---@return nil
@@ -123,11 +136,7 @@ local function insert(fake_list, pos, value)
     new = value,
   }
 
-  if change_count == 1 then
-    for controller in next, internal.controllers do
-      controller.changed_state_lut[internal] = true
-    end
-  end
+  changed_state_lut[fake_list] = true
 
   return table_insert(data, pos, value)
 end
@@ -170,7 +179,7 @@ meta = {
   __pairs = function(current)
     return next, current.__internal.data, nil
   end,
-  ---@param current StateFake
+  ---@param current State
   ---@param key Any
   ---@return Any
   __index = function(current, key) -- can optimize this to use a table as the __index
@@ -179,11 +188,11 @@ meta = {
     return current.__internal.data[key]
     -- don't even need to check if it's a table because the internal data is storing tables as fake tables
   end,
-  ---@param current StateFake
+  ---@param state State
   ---@param key Any
   ---@param new_value Any
-  __newindex = function(current, key, new_value)
-    local internal = current.__internal
+  __newindex = function(state, key, new_value)
+    local internal = state.__internal
 
     local internal_data = internal.data
     local old_value = internal_data[key]
@@ -198,11 +207,7 @@ meta = {
         new = new_value, ---@type Any
       }
 
-      if change_count == 1 then
-        for controller in next, internal.controllers do
-          controller.changed_state_lut[internal] = true
-        end
-      end
+      changed_state_lut[state] = true
 
       internal_data[key] = new_value
     end
@@ -211,35 +216,11 @@ meta = {
 
 meta_util.register_meta(meta_id, meta)
 
----@param state State
----@param controller StateController
-local function add_controller(state, controller)
-  state.__internal.controllers[controller] = true
-end
-
----@param state State
----@param controller StateController
-local function remove_controller(state, controller)
-  state.__internal.controllers[controller] = nil
-end
-
----create a new state and add the given controller
----@param controller StateController
----@param state table|nil @ the initial state, defaults to {}
+---@param initial_state? table @ the initial state, defaults to {}
 ---@return State
-local function create_state(controller, state)
-  state = hook(state or {})
-  add_controller(state, controller)
-  return state
-end
-
----create a new state controller as a parent of states
----@return StateController
-local function create_controller()
-  local controller = {
-    changed_state_lut = {},
-  }
-  return controller
+local function create(initial_state)
+  initial_state = hook(initial_state or {})
+  return initial_state
 end
 
 -- undo the debugger being smart and using pairs, therefore __pairs for debugchildren
@@ -270,13 +251,13 @@ end
 ---@diagnostic enable: no-implicit-any
 
 return {
+  on_load = on_load,
+  on_init = on_init,
+  get_changed_state_lut = get_changed_state_lut,
   hook = hook,
+  create = create,
   is_hooked = is_hooked,
   ensure_hook = ensure_hook,
-  create_state = create_state,
-  create_controller = create_controller,
-  add_controller = add_controller,
-  remove_controller = remove_controller,
   unhook = unhook,
   remove = remove,
   insert = insert,

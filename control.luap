@@ -1,6 +1,5 @@
 
 -- require("test-gui-framework")
 require("test-std-gui")
--- require("test-state-controllers")
 
 -- fix semantics

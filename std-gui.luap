@@ -14,28 +14,24 @@ local unpack = table.unpack
 
 local classes = {} ---@type table<string, StdGuiClass>
 
-local script_data
+local changed_state_lut
 
 local function on_load()
-  script_data = global.gui_glue_std
   gui.on_load()
+  state_util.on_load()
+  changed_state_lut = state_util.get_changed_state_lut()
 end
 
 local function on_init()
-  ---@class gui_glue_std_script_data
-  script_data = {
-  }
-  global.gui_glue_std = script_data
   gui.on_init()
+  state_util.on_init()
+  changed_state_lut = state_util.get_changed_state_lut()
 end
 
 
----@type StateController
-local function draw(controller)
-  local changed_state_lut = controller.changed_state_lut
-  for internal in next, changed_state_lut do
-    local state = internal.fake
-    local callback_insts = internal.callback_insts
+local function draw()
+  for state in next, changed_state_lut do
+    local callback_insts = state.__internal.callback_insts
     if callback_insts then
       for inst in next, callback_insts do
         local state_name = inst.state_name_map[state]
@@ -48,7 +44,7 @@ local function draw(controller)
       end
     end
     state_util.clear_changes(state)
-    changed_state_lut[internal] = nil
+    changed_state_lut[state] = nil
   end
 end
 
@@ -143,7 +139,7 @@ local function register_class(structure, parent_class_name)
 
   -- don't support StdAttributes
   local events
-  local extra_class_data = {} -- TODO: considering nothing is using this it porobably makes sense to remove it
+  local extra_class_data = {}
 
   local class_name = parent_class_name
     and parent_class_name.."-"..structure.class_name
@@ -295,8 +291,6 @@ local function register_class(structure, parent_class_name)
       style_mods = style_mods,
     }
 
-    local controller = params.controller ---@type StateController
-    data.controller = controller
     if state_names then
       local state_name_map = {}
       data.state_name_map = state_name_map
@@ -305,12 +299,11 @@ local function register_class(structure, parent_class_name)
       for i, state_name in next, state_names do
         local state = params[state_name] ---@type State
         if state then -- TODO: consider changing the way states are created and passed around
-          -- so that if a state is passed in neither of these 2 function calls are needed
+          -- so that if a state is passed in this function call is not needed
           state_util.ensure_hook(state)
-          state_util.add_controller(state, controller) -- make sure the state has this controller added
         else
           -- TODO: possibly add state initializer functions
-          state = state_util.create_state(controller) ---@type State
+          state = state_util.create_state() ---@type State
         end
         state_name_map[state] = state_name
         data[state_name] = state
@@ -438,10 +431,6 @@ local function register_class(structure, parent_class_name)
     if on_state_dispatch then
       on_state_dispatch(self, state, state_name)
     end
-  end
-
-  function class:draw()
-    draw(self.controller)
   end
 
   local get_children = structure.get_children

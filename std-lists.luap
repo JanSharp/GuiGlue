@@ -17,7 +17,7 @@ function std_list.create(params)
     -- style = params.style,
   }
   return self, {
-    state = state_util.create_state(params.list),
+    state = state_util.create(params.list),
     list_items = {},
   }
 end
