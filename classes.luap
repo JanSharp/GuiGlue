@@ -47,21 +47,21 @@
 ---@class GuiCreateParams : GuiChild, table
 
 
----@class StdGuiStructureFunctions
+---@class StdGuiStructFunctions
 ---@field get_children fun(self: StdGuiInst): StdGuiChild[] @ optional
 ---@field on_state_dispatch fun(self: StdGuiInst, state: State, state_name: string) @ optional
 
----@class StdFrameworkClass : GuiClass, StdGuiStructureFunctions
+---@class StdFrameworkClass : GuiClass, StdGuiStructFunctions
 ---@field base_class StdFrameworkClass|nil
----@field structures string[]
+---@field structs string[]
 
 ---@class StdGuiClass
 ---@field class_name string
----@field structure StdGuiStructure
+---@field struct StdGuiStruct
 ---@field framework_class GuiClass
 ---@field base_class StdGuiClass|nil
 ---@field state_names string[]|nil
----@field structure_names string[]
+---@field struct_names string[]
 ---@field extra_class_data table
 
 ---@class StdGuiInst : GuiInst, StdFrameworkClass, table
@@ -69,12 +69,12 @@
 
 ---@class StdGuiChild : GuiChild
 
----@class StdGuiStructure : GuiElementMods, GuiClassDefinitionBase, StdGuiStructureFunctions
+---@class StdGuiStruct : GuiElementMods, GuiClassDefinitionBase, StdGuiStructFunctions
 ---@field states string[]|nil @ names of states this class is going to use
 ---@field base_class string|nil
----@field structures StdGuiStructure[]|nil
+---@field structs StdGuiStruct[]|nil
 
----@class StdGuiStructureAddParam : StdGuiStructure, LuaGuiElement.add_param
+---@class StdGuiStructAddParam : StdGuiStruct, LuaGuiElement.add_param
 
 
 ---@class StdAttribute

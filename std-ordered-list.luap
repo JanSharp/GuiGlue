@@ -38,7 +38,7 @@ local std_list = {
       }
     end
     local list_item = self:add{
-      class = self.structures.list_item,
+      class = self.structs.list_item,
       index = index,
       states = states,
     }
@@ -100,7 +100,7 @@ local ordered_list = {
   is_core = true,
   states = {"state"},
 
-  structures = {
+  structs = {
     reorder_btn = {
       class_name = "reorder_btn",
       type = "button",

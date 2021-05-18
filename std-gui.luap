@@ -93,14 +93,14 @@ local special_field_names = {
   "elem_mods", -- merged
   "style_mods", -- merged
   "get_children", -- overridden
-  "structures", -- ignored
+  "structs", -- ignored
   "events", -- merged
 }
 -- any additional data is also merged
 
 local do_not_inherit_field_name_lut = {
   states = true,
-  structures = true,
+  structs = true,
 }
 
 local special_field_name_lut = {}
@@ -111,18 +111,18 @@ for _, special_field in next, special_field_names do
   special_field_name_lut[special_field] = true
 end
 
----@param structure StdGuiStructure
+---@param struct StdGuiStruct
 ---@param parent_class_name string
-local function register_class(structure, parent_class_name)
+local function register_class(struct, parent_class_name)
 
-  structure.add_param = structure.elem
-  structure.elem = nil
+  struct.add_param = struct.elem
+  struct.elem = nil
 
 #if DEBUG then
-  print(structure.class_name)
+  print(struct.class_name)
 #end
 
-  local structure_class_name_map ---@type table<string, string>
+  local struct_class_name_map ---@type table<string, string>
 
   local static_add_param = {} ---@type table<string, StdAttribute>
   local static_elem_mods = {} ---@type table<string, StdAttribute>
@@ -142,23 +142,23 @@ local function register_class(structure, parent_class_name)
   local extra_class_data = {}
 
   local class_name = parent_class_name
-    and parent_class_name.."-"..structure.class_name
-    or structure.class_name
-  structure.class_name = class_name
+    and parent_class_name.."-"..struct.class_name
+    or struct.class_name
+  struct.class_name = class_name
 
   -- TODO: implement nil override
 
   local base_class
-  if structure.base_class then
-    base_class = classes[structure.base_class]
+  if struct.base_class then
+    base_class = classes[struct.base_class]
     if not base_class then
       error("Unable to find `base_class` '"..base_class.."'.")
     end
 
-    local base_structure = base_class.structure
+    local base_struct = base_class.struct
 
     ---@param base? table @ from `base_class`
-    ---@param this? table @ from `structure`
+    ---@param this? table @ from `struct`
     ---@return table?
     local function merge(base, this)
       local result = util.copy(base)
@@ -178,57 +178,57 @@ local function register_class(structure, parent_class_name)
       "style_mods",
       "events",
     } do
-      structure[field_name] = merge(base_structure[field_name], structure[field_name])
+      struct[field_name] = merge(base_struct[field_name], struct[field_name])
     end
 
     for _, special_event_name in next, special_event_names do
-      if not structure[special_event_name] then
-        structure[special_event_name] = base_structure[special_event_name]
+      if not struct[special_event_name] then
+        struct[special_event_name] = base_struct[special_event_name]
       end
     end
-    if not structure.get_children then
-      structure.get_children = base_structure.get_children
+    if not struct.get_children then
+      struct.get_children = base_struct.get_children
     end
 
     for field_name, value in next, base_class.extra_class_data do
-      if not structure[field_name] then
-        structure[field_name] = util.copy(value)
+      if not struct[field_name] then
+        struct[field_name] = util.copy(value)
       end
     end
 
-    for k, v in next, base_structure do
+    for k, v in next, base_struct do
       if type(k) == "string" and type(v) == "function" then
-        structure["base_"..k] = v
+        struct["base_"..k] = v
       end
     end
 
-    if base_structure.events and structure.events then
-      for k, v in next, base_structure.events do
-        structure.events["base_"..k] = v
+    if base_struct.events and struct.events then
+      for k, v in next, base_struct.events do
+        struct.events["base_"..k] = v
       end
     end
 
-    structure_class_name_map = util.copy(base_class.structure_names)
+    struct_class_name_map = util.copy(base_class.struct_names)
   else
-    structure_class_name_map = {}
+    struct_class_name_map = {}
   end
 
-  local state_names = structure.states
+  local state_names = struct.states
 
   local class = new GuiClass{
     class_name = class_name,
     base_class = base_class and base_class.framework_class or nil,
-    structures = structure_class_name_map,
+    structs = struct_class_name_map,
   }
   local std_class = new StdGuiClass{
     class_name = class_name,
-    structure = structure,
+    struct = struct,
     base_class = base_class,
     framework_class = class,
 
     -- needed when inheriting
     state_names = state_names,
-    structure_names = structure_class_name_map,
+    struct_names = struct_class_name_map,
     extra_class_data = extra_class_data,
   }
 
@@ -247,23 +247,23 @@ local function register_class(structure, parent_class_name)
     end
   end
 
-  add_param = structure.add_param
+  add_param = struct.add_param
   if add_param then
     parse_table_with_std_attributes(add_param, static_add_param, dynamic_add_param)
   end
 
-  elem_mods = structure.elem_mods
+  elem_mods = struct.elem_mods
   if elem_mods then
     parse_table_with_std_attributes(elem_mods, static_elem_mods, dynamic_elem_mods)
   end
 
-  style_mods = structure.style_mods
+  style_mods = struct.style_mods
   if style_mods then
     parse_table_with_std_attributes(style_mods, static_style_mods, dynamic_style_mods)
   end
 
 
-  events = structure.events
+  events = struct.events
   if events then
     for name, handler in next, events do
       class[name] = handler
@@ -272,15 +272,15 @@ local function register_class(structure, parent_class_name)
 
 
   ---@typelist string, Any
-  for field_name, value in next, structure do
+  for field_name, value in next, struct do
     if not special_field_name_lut[field_name] then
       extra_class_data[field_name] = value
       class[field_name] = value
     end
   end
 
-  class.on_elem_created = structure.on_elem_created
-  class.get_children = structure.get_children
+  class.on_elem_created = struct.on_elem_created
+  class.get_children = struct.get_children
 
   ---@narrow class StdGuiInst
 
@@ -336,7 +336,7 @@ local function register_class(structure, parent_class_name)
     return inst, data
   end
 
-  local on_destroy = structure.on_destroy
+  local on_destroy = struct.on_destroy
   function class:on_destroy()
     for _, state in next, self.states do
       deregister_inst_from_state(self, state)
@@ -379,7 +379,7 @@ local function register_class(structure, parent_class_name)
     add_to_runtime_attribute_map_map(dynamic_elem_mods, false)
     add_to_runtime_attribute_map_map(dynamic_style_mods, true)
 
-    local on_state_dispatch = structure.on_state_dispatch
+    local on_state_dispatch = struct.on_state_dispatch
     local get_changes = state_util.get_changes
     local enums_state_change_assigned = enums.state_change.assigned
     local needs_update = {} ---@type StdRuntimeAttribute[]
@@ -436,11 +436,11 @@ local function register_class(structure, parent_class_name)
       end
     end
   else
-    class.on_state_dispatch = structure.on_state_dispatch
+    class.on_state_dispatch = struct.on_state_dispatch
   end
 
-  local get_children = structure.get_children
-  local on_children_created = structure.on_children_created
+  local get_children = struct.get_children
+  local on_children_created = struct.on_children_created
   if get_children or on_children_created then
     function class:on_children_created()
       if get_children then
@@ -457,12 +457,12 @@ local function register_class(structure, parent_class_name)
   -- this causes generation of base_foo functions for all of
   -- these functions whenever a class derives from this class
   for _, special_event_name in next, special_event_names do
-    if not structure[special_event_name] then
-      structure[special_event_name] = () => {}
+    if not struct[special_event_name] then
+      struct[special_event_name] = () => {}
     end
   end
   if not get_children then
-    structure.get_children = () => ({}) -- either this returns an empty table
+    struct.get_children = () => ({}) -- either this returns an empty table
     -- or in on_children_created when adding children it has to check if the
     -- return value from get_children is nil
     -- because when inheriting a class that didn't define it's own get_children
@@ -472,13 +472,13 @@ local function register_class(structure, parent_class_name)
 
   gui.register_class(class)
 
-  if structure.structures then
-    for structure_name, sub_structure in next, structure.structures do
-      register_class(sub_structure, class_name)
-      structure_class_name_map[structure_name] = sub_structure.class_name
+  if struct.structs then
+    for struct_name, sub_struct in next, struct.structs do
+      register_class(sub_struct, class_name)
+      struct_class_name_map[struct_name] = sub_struct.class_name
     end
   end
-  structure.structures = nil
+  struct.structs = nil
 end
 
 return {
