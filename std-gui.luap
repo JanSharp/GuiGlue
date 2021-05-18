@@ -534,6 +534,9 @@ local function register_class(struct, parent_class_name)
 
   if struct.structs then
     for struct_name, sub_struct in next, struct.structs do
+      if not sub_struct.class_name then
+        sub_struct.class_name = struct_name
+      end
       register_class(sub_struct, class_name)
       struct_class_name_map[struct_name] = sub_struct.class_name
     end
