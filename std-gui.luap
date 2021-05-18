@@ -153,7 +153,7 @@ local function register_class(struct, parent_class_name)
   if struct.base_class then
     base_class = classes[struct.base_class]
     if not base_class then
-      error("Unable to find `base_class` '"..base_class.."'.")
+      error("Unable to find `base_class` '"..struct.base_class.."'.")
     end
 
     local base_struct = base_class.struct
