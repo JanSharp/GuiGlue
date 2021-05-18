@@ -89,6 +89,7 @@ local special_field_names = {
   "class_name", -- ignored
   "base_class", -- ignored
   "states", -- merged
+  "state_mapping", -- merged
   "add_param", -- merged
   "elem_mods", -- merged
   "style_mods", -- merged
@@ -173,6 +174,7 @@ local function register_class(struct, parent_class_name)
 
     for _, field_name in next, {
       "states",
+      "state_mapping",
       "add_param",
       "elem_mods",
       "style_mods",
@@ -271,6 +273,65 @@ local function register_class(struct, parent_class_name)
   end
 
 
+  local get_children = struct.get_children
+  if get_children == "default" then
+    local mapping = struct.state_mapping or {}
+    for struct_name in next, struct.structs do
+      if not mapping[struct_name] then
+        local struct_mapping = {}
+        for _, state_name in next, state_names do
+          struct_mapping[state_name] = state_name
+        end
+        mapping[struct_name] = struct_mapping
+      end
+    end
+    local parts, c = {}, 0
+    local add = part => {c = c + 1; parts[c] = part}
+    add("local children = {}\n")
+    local i = 0
+    for struct_name in next, mapping do
+      i = i + 1
+      add("local ")
+      add(struct_name)
+      add(" = {class = '")
+      add(class_name)
+      add("-")
+      add(struct_name)
+      add("'}\nchildren[")
+      add(tostring(i))
+      add("] = ")
+      add(struct_name)
+      add("\n")
+    end
+    add("local function default_get_children(self)")
+    i = 0
+    for struct_name, struct_mapping in next, mapping do
+      i = i + 1
+      for target, source in next, struct_mapping do
+        add("\n  ")
+        add(struct_name)
+        add(".")
+        add(target)
+        add(" = self.")
+        add(source)
+      end
+    end
+    add("\n  return children\nend\nreturn default_get_children\n")
+    local str = table.concat(parts)
+    local chunk, err = load(str, nil, "t", {})
+    if chunk then
+      local success, func = pcall(chunk)
+      if success then
+        get_children = func
+        log(serpent.block(debug.getinfo(func)))
+      else
+        error("Unable to generate default get_children function: "..func)
+      end
+    else
+      error("Unable to generate default get_children function: "..err)
+    end
+  end
+
   ---@typelist string, Any
   for field_name, value in next, struct do
     if not special_field_name_lut[field_name] then
@@ -280,7 +341,7 @@ local function register_class(struct, parent_class_name)
   end
 
   class.on_elem_created = struct.on_elem_created
-  class.get_children = struct.get_children
+  class.get_children = get_children
 
   ---@narrow class StdGuiInst
 
@@ -439,7 +500,6 @@ local function register_class(struct, parent_class_name)
     class.on_state_dispatch = struct.on_state_dispatch
   end
 
-  local get_children = struct.get_children
   local on_children_created = struct.on_children_created
   if get_children or on_children_created then
     function class:on_children_created()

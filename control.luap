@@ -1,0 +1,35 @@
+
+---@diagnostic disable: no-implicit-any
+---@diagnostic disable: undefined-field
+
+local gui = require("__GuiGlue__.gui")
+local std_gui = require("__GuiGlue__.std-gui")
+local attr = require("__GuiGlue__.std-gui-attributes")
+
+script.on_init(std_gui.on_init)
+script.on_load(std_gui.on_load)
+
+local foo = {
+  class_name = "foo",
+  states = {"state"},
+  elem = {type = "frame", caption = "foo"},
+  elem_mods = {auto_center = true},
+  get_children = {"state"},
+  structs = {
+    bar = {
+      class_name = "bar",
+      states = "default",
+      elem = {type = "label", caption = attr.dynamic("state.bar", state => (state.bar))},
+    },
+  },
+}
+
+std_gui.register_class(foo)
+
+script.on_event(defines.events.on_player_created, function(event)
+  local player = game.get_player(event.player_index)
+
+  local inst = gui.create(player.gui.screen, {class = "foo", state = {bar = "wow!"}})
+end)
+
+-- fix semantics
