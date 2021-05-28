@@ -391,12 +391,12 @@ local function register_class(struct, parent_class_name)
           end
         #end
 
-        #eval_attributes("static_add_param", "add_param")
-        #eval_attributes("dynamic_add_param", "add_param")
-        #eval_attributes("static_elem_mods", "elem_mods")
-        #eval_attributes("dynamic_elem_mods", "elem_mods")
-        #eval_attributes("static_style_mods", "style_mods")
-        #eval_attributes("dynamic_style_mods", "style_mods")
+        #eval_attributes($static_add_param, $add_param)
+        #eval_attributes($dynamic_add_param, $add_param)
+        #eval_attributes($static_elem_mods, $elem_mods)
+        #eval_attributes($dynamic_elem_mods, $elem_mods)
+        #eval_attributes($static_style_mods, $style_mods)
+        #eval_attributes($dynamic_style_mods, $style_mods)
       end
       run(unpack(states))
     end
@@ -469,7 +469,7 @@ local function register_class(struct, parent_class_name)
       end
       if needs_update_count > 0 then
         local elem = self.elem
-        local style = elem.style ---@diagnostic disable-line: unused-local
+        local style = elem.style
         local function run(...)
           for i = 1, needs_update_count do
             local runtime_attribute = needs_update[i]
@@ -489,9 +489,9 @@ local function register_class(struct, parent_class_name)
             #end
 
             if runtime_attribute.is_for_styles then
-              #dynamic_set("style")
+              #dynamic_set($style)
             else
-              #dynamic_set("elem")
+              #dynamic_set($elem)
             end
 
           end
