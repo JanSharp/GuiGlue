@@ -287,7 +287,7 @@ local function register_class(struct, parent_class_name)
     end
     local parts, c = {}, 0
     local add = part => {c = c + 1; parts[c] = part}
-    add("local children = {}\n")
+    add("\nlocal children = {}\n")
     local i = 0
     for struct_name in next, mapping do
       i = i + 1
@@ -303,12 +303,16 @@ local function register_class(struct, parent_class_name)
       add(struct_name)
       add("\n")
     end
-    add("local function default_get_children(self)")
+    add("\n-- for class `")
+    add(class_name)
+    add("`\nlocal function default_get_children(self)")
     i = 0
     for struct_name, struct_mapping in next, mapping do
       i = i + 1
       for target, source in next, struct_mapping do
-        add("\n  ")
+        add("\n\n  -- struct `")
+        add(struct_name)
+        add("`\n  ")
         add(struct_name)
         add(".")
         add(target)
@@ -316,19 +320,22 @@ local function register_class(struct, parent_class_name)
         add(source)
       end
     end
-    add("\n  return children\nend\nreturn default_get_children\n")
+    add("\n\n  return children\nend\nreturn default_get_children\n")
     local str = table.concat(parts)
-    local chunk, err = load(str, nil, "t", {})
+    -- `nil` chunkname causes the loaded string ("source code") to be the `source`
+    -- the debugger uses this for break on exception, and maybe even stepping in general
+    -- without the debugger however a name for the loaded chunk is more helpful
+    local chunkname = not __DebugAdapter and "=(default '"..class_name.."' get_children)" or nil
+    local chunk, err = load(str, chunkname, "t", {})
     if chunk then
       local success, func = pcall(chunk)
       if success then
         get_children = func
-        log(serpent.block(debug.getinfo(func)))
       else
-        error("Unable to generate default get_children function: "..func)
+        error("Unable to generate default '"..class_name.."' get_children function: "..func)
       end
     else
-      error("Unable to generate default get_children function: "..err)
+      error("Unable to generate default '"..class_name.."' get_children function: "..err)
     end
   end
 
