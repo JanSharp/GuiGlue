@@ -48,7 +48,7 @@
 
 
 ---@class StdGuiStructFunctions
----@field get_children fun(self: StdGuiInst): StdGuiChild[] @ optional
+---@field get_children '"default"'|fun(self: StdGuiInst): StdGuiChild[] @ optional
 ---@field on_state_dispatch fun(self: StdGuiInst, state: State, state_name: string) @ optional
 
 ---@class StdFrameworkClass : GuiClass, StdGuiStructFunctions
@@ -70,6 +70,37 @@
 ---@class StdGuiChild : GuiChild
 
 ---@class StdGuiStruct : GuiElementMods, GuiClassDefinitionBase, StdGuiStructFunctions
+---table<`struct_name`, table<`state_name`, `assignment_exrepssion`>>
+---
+---### example:
+---```
+---state_mapping = {
+---  foo = {state = "state.foo"}
+---  bar = {
+---    hello = "state.bar.hello",
+---    bye = "other_state.bye",
+---  },
+---},
+---```
+---### where
+---```
+---states = {"state", "other_state"},
+---structs = {
+---  foo = {
+---    states = {"state"},
+---    -- ...
+---  },
+---  bar = {
+---    states = {"hello", "bye"},
+---    -- ...
+---  },
+---  baz = {
+---    states = {"state", "other_state"},
+---    -- ...
+---  },
+---},
+---```
+---@field state_mapping table<string, table<string, string>>
 ---@field states string[]|nil @ names of states this class is going to use
 ---@field base_class string|nil
 ---@field structs StdGuiStruct[]|nil
