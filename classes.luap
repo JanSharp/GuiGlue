@@ -111,6 +111,6 @@
 ---@field new Any|nil
 
 ---@class Preprocessor
-preprocessor = {}
+prep = {}
 
 -- fix semantics
