@@ -276,20 +276,11 @@ local function register_class(struct, parent_class_name)
   local get_children = struct.get_children
   if get_children == "default" then
     local mapping = struct.state_mapping or {}
-    for struct_name in next, struct.structs do
-      if not mapping[struct_name] then
-        local struct_mapping = {}
-        for _, state_name in next, state_names do
-          struct_mapping[state_name] = state_name
-        end
-        mapping[struct_name] = struct_mapping
-      end
-    end
     local parts, c = {}, 0
+    local i = 0
     local add = part => {c = c + 1; parts[c] = part}
     add("\nlocal children = {}\n")
-    local i = 0
-    for struct_name in next, mapping do
+    for struct_name in next, struct.structs do
       i = i + 1
       add("local ")
       add(struct_name)
@@ -297,7 +288,11 @@ local function register_class(struct, parent_class_name)
       add(class_name)
       add("-")
       add(struct.structs[struct_name].class_name or struct_name)
-      add("'}\nchildren[")
+      add("'")
+      if not mapping[struct_name] then
+        add(", reuse_states = true")
+      end
+      add("}\nchildren[")
       add(tostring(i))
       add("] = ")
       add(struct_name)
@@ -306,18 +301,26 @@ local function register_class(struct, parent_class_name)
     add("\n-- for class `")
     add(class_name)
     add("`\nlocal function default_get_children(self)")
-    i = 0
-    for struct_name, struct_mapping in next, mapping do
-      i = i + 1
-      for target, source in next, struct_mapping do
-        add("\n\n  -- struct `")
+    for struct_name in next, struct.structs do
+      local struct_mapping = mapping[struct_name]
+      add("\n\n  -- struct `")
+      add(struct_name)
+      add("`")
+      if struct_mapping then
+        for target, source in next, struct_mapping do
+          add("\n  ")
+          add(struct_name)
+          add(".")
+          add(target)
+          add(" = self.")
+          add(source)
+        end
+      else
+        add(" (`reuse_states = true`, see up top)\n  ")
         add(struct_name)
-        add("`\n  ")
+        add(".states = self.states\n  ")
         add(struct_name)
-        add(".")
-        add(target)
-        add(" = self.")
-        add(source)
+        add(".state_name_map = self.state_name_map")
       end
     end
     add("\n\n  return children\nend\nreturn default_get_children\n")
@@ -352,56 +355,94 @@ local function register_class(struct, parent_class_name)
 
   ---@narrow class StdGuiInst
 
-  local data = {}
-  function class.create(params)
-    ---@type GuiInstDefinition
-    local inst = {
-      add_param = add_param,
-      elem_mods = elem_mods,
-      style_mods = style_mods,
-    }
+  #local function prep_add_create(has_states)
+    function class.create(
+      ##if has_states then
+        params
+      ##end
+    )
+      ---@type GuiInstDefinition
+      local inst = {
+        add_param = add_param,
+        elem_mods = elem_mods,
+        style_mods = style_mods,
+      }
 
-    if state_names then
-      local state_name_map = {}
-      data.state_name_map = state_name_map
-      local states = {}
-      data.states = states
-      for i, state_name in next, state_names do
-        local state = params[state_name] ---@type State
-        if state then -- TODO: consider changing the way states are created and passed around
-          -- so that if a state is passed in this function call is not needed
-          state_util.ensure_hook(state)
+      #if has_states then
+        local inst_states
+        if params.reuse_states then
+          inst_states = params.states
+          inst.state_name_map = params.state_name_map
+          #if DEBUG then
+            #local function prep_assert(expression, field_name_in_params)
+              if not $(expression) then
+                -- TODO: add more info in error messages
+                error("`params.$(field_name_in_params or expression)` missing when `reuse_states` was set.")
+              end
+            #end
+            #prep_assert($inst_states)
+            #prep_assert($e(inst.state_name_map), "state_name_map")
+          #end
+          for state_name, state in next, inst_states do
+            inst[state_name] = state
+            register_inst_to_state(inst, state)
+          end
         else
-          -- TODO: possibly add state initializer functions
-          state = state_util.create() ---@type State
+          inst_states = {}
+          local state_name_map = {}
+          inst.state_name_map = state_name_map
+          local states = params.states
+          if states then
+            for state_name, state in next, states do
+              #local function prep_set_state()
+                if state then -- TODO: consider changing the way states are created and passed around
+                  -- so that if a state is passed in this function call is not needed
+                  state_util.ensure_hook(state)
+                else
+                  state = state_util.create(state)
+                end
+                inst_states[state_name] = state
+                inst[state_name] = state
+                state_name_map[state] = state_name
+                register_inst_to_state(inst, state)
+              #end
+              #prep_set_state()
+            end
+          else
+            for _, state_name in next, state_names do
+              #---@diagnostic disable-next-line: unused-local
+              local state = params[state_name]
+              ##prep_set_state()
+            end
+          end
         end
-        state_name_map[state] = state_name
-        data[state_name] = state
-        states[i] = state
+        inst.states = inst_states
 
-        register_inst_to_state(inst, state)
-      end
-      data.states = states
-
-      -- TODO: improve performance
-      local function run(...)
-        #local function eval_attributes(attributes, target, ...)
+        #local function eval_attributes(attributes, target)
           for k, attribute in next, $(attributes) do
-            $(target)[k] = attribute.setter(...)
+            $(target)[k] = attribute.setter(inst_states)
           end
         #end
 
+        -- TODO: completely remove these if the lists are guaranteed to be empty
+        -- this requries a lot of preprocessor crap and code duplication
+        -- i'm not yet sure if i even want to do it
         #eval_attributes($static_add_param, $add_param)
         #eval_attributes($dynamic_add_param, $add_param)
         #eval_attributes($static_elem_mods, $elem_mods)
         #eval_attributes($dynamic_elem_mods, $elem_mods)
         #eval_attributes($static_style_mods, $style_mods)
         #eval_attributes($dynamic_style_mods, $style_mods)
-      end
-      run(unpack(states))
-    end
+      #end
 
-    return inst, data
+      return inst
+    end
+  #end
+
+  if state_names then
+    #prep_add_create(true)
+  else
+    #prep_add_create(false)
   end
 
   local on_destroy = struct.on_destroy
@@ -470,33 +511,31 @@ local function register_class(struct, parent_class_name)
       if needs_update_count > 0 then
         local elem = self.elem
         local style = elem.style
-        local function run(...)
-          for i = 1, needs_update_count do
-            local runtime_attribute = needs_update[i]
+        local states = self.states
+        for i = 1, needs_update_count do
+          local runtime_attribute = needs_update[i]
 
-            #local function dynamic_set(target, ...)
-              #if DEBUG then
-                local value = runtime_attribute.setter(...)
-                local success, err = pcall(() => {$(target)[runtime_attribute.attribute_name] = value})
-                if not success then
-                  local info = debug.getinfo(runtime_attribute.setter, "S")
-                  error(info.short_src..":"..info.linedefined..": setter for `$(target)."
-                    ..runtime_attribute.attribute_name.."`: "..err)
-                end
-              #else
-                $(target)[runtime_attribute.attribute_name] = runtime_attribute.setter(...)
-              #end
+          #local function dynamic_set(target)
+            #if DEBUG then
+              local value = runtime_attribute.setter(states)
+              local success, err = pcall(() => {$(target)[runtime_attribute.attribute_name] = value})
+              if not success then
+                local info = debug.getinfo(runtime_attribute.setter, "S")
+                error(info.short_src..":"..info.linedefined..": setter for `$(target)."
+                  ..runtime_attribute.attribute_name.."`: "..err)
+              end
+            #else
+              $(target)[runtime_attribute.attribute_name] = runtime_attribute.setter(states)
             #end
+          #end
 
-            if runtime_attribute.is_for_styles then
-              #dynamic_set($style)
-            else
-              #dynamic_set($elem)
-            end
-
+          if runtime_attribute.is_for_styles then
+            #dynamic_set($style)
+          else
+            #dynamic_set($elem)
           end
+
         end
-        run(unpack(self.states))
         needs_update_count = 0
       end
       if on_state_dispatch then

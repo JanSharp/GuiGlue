@@ -3,7 +3,6 @@
 
 ---@alias EventConditionFun fun(inst: GuiInst):boolean
 
----@alias GuiData table<Any, Any>
 ---@alias ElemOrStyleMods table<string, Any>
 
 ---@class GuiElementMods
@@ -20,7 +19,7 @@
 ---@field on_destroy fun(inst: GuiInst) @ optional
 
 ---@class GuiClassDefinition : GuiClassDefinitionBase
----@field create fun(params?: GuiCreateParams): GuiInstDefinition, GuiData?
+---@field create fun(params?: GuiCreateParams): GuiInstDefinition
 ---@field event_conditions table<string, EventConditionFun>
 
 ---@class GuiInstDefinition : GuiElementMods
@@ -42,7 +41,9 @@
 ---@field class string @ class_name
 ---@field name string|nil
 ---@field core GuiInst|nil
----@field index integer|nil @ Location in it's parent that the child element should slot into. By default, the child will be appended onto the end.
+---Location in it's parent that the child element should slot into.
+---By default, the child will be appended onto the end.
+---@field index integer|nil
 
 ---@class GuiCreateParams : GuiChild, table
 
@@ -65,9 +66,24 @@
 ---@field extra_class_data table
 
 ---@class StdGuiInst : GuiInst, StdFrameworkClass, table
----@field states State[]
+---**Do not modify this specific table directly. Use functions for that. -- TODO: what functions?**\
+---`nil` when `state_names` is `nil` on the `StdGuiClass`
+---@field states table<string, State>|nil
+---**Used internally, do not modify.**\
+---`nil` when `state_names` is `nil` on the `StdGuiClass`
+---@field state_name_map table<State, string>|nil
 
 ---@class StdGuiChild : GuiChild
+---@field reuse_states boolean|nil @ when `true` then `states` and `state_name_map` need to be set
+---when `nil` all states must be defined in the root of the `StdGuiChild`
+---
+---when `not nil` all states must be defined in `states` and
+---the table will be copied and missing states will be populated
+---
+---when `reuse_states` is `true` then this is required and will
+---not be copied, no check for missing states and states much be hooked already
+---@field states table<string, State>|nil
+---@field state_name_map table<State, string>|nil @ only used when `reuse_states` is `true`
 
 ---@class StdGuiStruct : GuiElementMods, GuiClassDefinitionBase, StdGuiStructFunctions
 ---table<`struct_name`, table<`state_name`, `assignment_exrepssion`>>
@@ -112,7 +128,8 @@
 ---@field __std_gui boolean @ true
 ---@field type EnumStdGuiAttribute
 ---@field setter fun(state: State, ...): Any
----@field triggers StdAttributeTrigger[]|nil @ if this is dynamic defines which state changes trigger the setter to be called
+---if this is dynamic defines which state changes trigger the setter to be called
+---@field triggers StdAttributeTrigger[]|nil
 
 ---@class StdRuntimeAttribute
 ---@field setter fun(state: State, ...): Any

@@ -105,8 +105,8 @@ local function create_internal(parent_element, child, parent)
   local name = child.name
   local core = child.core
 
-  ---@typelist GuiInstDefinition, GuiData
-  local inst, data = class.create(child)
+  ---@typelist GuiInstDefinition
+  local inst = class.create(child)
   setmetatable(inst, class)
 
   ---@type GuiChild[]
@@ -140,11 +140,6 @@ local function create_internal(parent_element, child, parent)
     inst.core = core
     if name then
       core[name] = inst
-    end
-  end
-  if data then
-    for k, v in pairs(data) do
-      inst[k] = v
     end
   end
 

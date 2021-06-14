@@ -21,7 +21,7 @@ local foo = {
   structs = {
     bar = {
       states = {"state"},
-      elem = {type = "label", caption = attr.dynamic("state.bar", state => (state.bar))},
+      elem = {type = "label", caption = attr.dynamic("state.bar", s => (s.state.bar))},
     },
   },
 }
