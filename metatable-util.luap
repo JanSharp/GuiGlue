@@ -41,5 +41,3 @@ return {
   register_meta = register_meta,
   restore_metatables = restore_metatables,
 }
-
--- fix semantics

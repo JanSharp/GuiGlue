@@ -610,5 +610,3 @@ if settings.startup["GuiGlue-debug"].value then
 else
   #main(false)
 end
-
--- fix semantics

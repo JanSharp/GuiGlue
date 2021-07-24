@@ -138,5 +138,3 @@ local ordered_list = {
 }
 
 std_gui.register_class(ordered_list)
-
--- fix semantics

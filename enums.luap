@@ -23,5 +23,3 @@ if __DebugAdapter and script.active_mods["JanSharpDevEnv"] then
 end
 
 return enums
-
--- fix semantics

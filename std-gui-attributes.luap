@@ -68,5 +68,3 @@ return {
   static = static,
   nil_override = nil_override,
 }
-
--- fix semantics

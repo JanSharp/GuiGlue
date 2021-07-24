@@ -14,5 +14,3 @@ for name in pairs(defines.events) do
 end
 
 return event_names
-
--- fix semantics

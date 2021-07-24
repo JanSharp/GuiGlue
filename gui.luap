@@ -303,5 +303,3 @@ return {
   clear_invalid_instances = clear_invalid_instances,
   destroy = destroy,
 }
-
--- fix semantics

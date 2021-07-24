@@ -265,5 +265,3 @@ return {
   clear_changes = clear_changes,
   force_clear_changes = force_clear_changes,
 }
-
--- fix semantics
