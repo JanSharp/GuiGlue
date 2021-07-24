@@ -391,29 +391,19 @@ local function register_class(struct, parent_class_name)
           inst_states = {}
           local state_name_map = {}
           inst.state_name_map = state_name_map
-          local states = params.states
-          if states then
-            for state_name, state in next, states do
-              #local function prep_set_state()
-                if state then -- TODO: consider changing the way states are created and passed around
-                  -- so that if a state is passed in this function call is not needed
-                  state_util.ensure_hook(state)
-                else
-                  state = state_util.create(state)
-                end
-                inst_states[state_name] = state
-                inst[state_name] = state
-                state_name_map[state] = state_name
-                register_inst_to_state(inst, state)
-              #end
-              #prep_set_state()
+          local states = params.states or params
+          for _, state_name in next, state_names do
+            local state = states[state_name]
+            if state then -- TODO: consider changing the way states are created and passed around
+              -- so that if a state is passed in, this function call is not needed
+              state_util.ensure_hook(state)
+            else
+              state = state_util.create(state)
             end
-          else
-            for _, state_name in next, state_names do
-              #---@diagnostic disable-next-line: unused-local
-              local state = params[state_name]
-              ##prep_set_state()
-            end
+            inst_states[state_name] = state
+            inst[state_name] = state
+            state_name_map[state] = state_name
+            register_inst_to_state(inst, state)
           end
         end
         inst.states = inst_states
