@@ -88,7 +88,7 @@ local special_event_names = {
 local special_field_names = {
   "class_name", -- ignored
   "base_class", -- ignored
-  "states", -- merged
+  "states", -- append
   "state_mapping", -- merged
   "add_param", -- merged
   "elem_mods", -- merged
@@ -98,11 +98,6 @@ local special_field_names = {
   "events", -- merged
 }
 -- any additional data is also merged
-
-local do_not_inherit_field_name_lut = {
-  states = true,
-  structs = true,
-}
 
 local special_field_name_lut = {}
 for _, special_func in next, special_event_names do
@@ -119,9 +114,9 @@ local function register_class(struct, parent_class_name)
   struct.add_param = struct.elem
   struct.elem = nil
 
-#if DEBUG then
-  print(struct.class_name)
-#end
+  #if DEBUG then
+    print(struct.class_name)
+  #end
 
   local struct_class_name_map ---@type table<string, string>
 
@@ -172,8 +167,26 @@ local function register_class(struct, parent_class_name)
       return result
     end
 
+    -- append struct.states to base_struct.states
+    do
+      local base_states = base_struct.states
+      if base_states then
+        local c = #base_states
+        local states = {}
+        for i = 1, c do
+          states[i] = base_states[i]
+        end
+        local struct_states = struct.states
+        if struct_states then
+          for i = 1, #struct_states do
+            states[c + i] = struct_states[i]
+          end
+        end
+        struct.states = states
+      end
+    end
+
     for _, field_name in next, {
-      "states",
       "state_mapping",
       "add_param",
       "elem_mods",
@@ -204,9 +217,12 @@ local function register_class(struct, parent_class_name)
       end
     end
 
-    if base_struct.events and struct.events then
-      for k, v in next, base_struct.events do
-        struct.events["base_"..k] = v
+    if base_struct.events then
+      local struct_events = struct.events
+      if struct_events then
+        for k, v in next, base_struct.events do
+          struct_events["base_"..k] = v
+        end
       end
     end
 

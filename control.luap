@@ -9,27 +9,51 @@ local attr = require("__GuiGlue__.std-gui-attributes")
 script.on_init(std_gui.on_init)
 script.on_load(std_gui.on_load)
 
+local bar = {
+  class_name = "bar",
+  states = {"hi"},
+  elem = {type = "flow"},
+  events = {
+    on_click = self => {game.print(self.states.hi.bar)},
+  },
+}
+
+local states = {"state"}
+
 local foo = {
   class_name = "foo",
-  states = {"state"},
+  states = states,
   elem = {type = "frame", caption = "foo"},
   elem_mods = {auto_center = true},
   -- state_mapping = {
   --   bar = {state = "hello.world"},
   -- },
+  state_mapping = {
+    bar = {state = "state", hi = "state.hi"},
+  },
   get_children = "default",
   structs = {
     bar = {
-      states = {"state"},
+      base_class = "bar",
+      states = states,
       elem = {type = "label", caption = attr.dynamic("state.bar", s => (s.state.bar))},
     },
   },
 }
 
+std_gui.register_class(bar)
 std_gui.register_class(foo)
 
 script.on_event(defines.events.on_player_created, function(event)
   local player = game.get_player(event.player_index)
 
-  local inst = gui.create(player.gui.screen, {class = "foo", state = {bar = "wow!"}})
+  local inst = gui.create(player.gui.screen, {
+    class = "foo",
+    state = {
+      bar = "wow!",
+      hi = {
+        bar = "print me!",
+      },
+    },
+  })
 end)
