@@ -374,14 +374,14 @@ local function register_class(struct, parent_class_name)
           inst_states = params.states
           inst.state_name_map = params.state_name_map
           #if DEBUG then
-            #local function prep_assert(expression, field_name_in_params)
+            #local function prep_assert(expression)
               if not $(expression) then
                 -- TODO: add more info in error messages
-                error("`params.$(field_name_in_params or expression)` missing when `reuse_states` was set.")
+                error("`$(expression)` missing when `reuse_states` was set.")
               end
             #end
-            #prep_assert($inst_states)
-            #prep_assert($e(inst.state_name_map), "state_name_map")
+            #prep_assert($e(params.states))
+            #prep_assert($e(params.state_name_map))
           #end
           for state_name, state in next, inst_states do
             inst[state_name] = state
