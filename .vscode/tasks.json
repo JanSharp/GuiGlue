@@ -20,6 +20,9 @@
         "--target-extension", ".lua",
         "--auto-clean-up-target-dir",
       ],
+      "presentation": {
+        "reveal": "never",
+      },
     },
     {
       "label": "GuiGluePreprocessDebug",
@@ -38,6 +41,9 @@
         "--auto-clean-up-target-dir",
         "--debug",
       ],
+      "presentation": {
+        "reveal": "never",
+      },
     },
   ],
 }
