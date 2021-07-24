@@ -14,7 +14,7 @@ local bar = {
   states = {"hi"},
   elem = {type = "flow"},
   events = {
-    on_click = self => {game.print(self.states.hi.bar)},
+    on_click = self => {game.print(self.hi.bar)},
   },
 }
 

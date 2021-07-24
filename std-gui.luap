@@ -10,9 +10,9 @@ local gui = require("__GuiGlue__.gui")
 local state_util = require("__GuiGlue__.state-util")
 local util = require("util")
 
-local unpack = table.unpack
-
 local classes = {} ---@type table<string, StdGuiClass>
+
+local nil_override = {null = true}
 
 local changed_state_lut
 
@@ -151,20 +151,32 @@ local function register_class(struct, parent_class_name)
       error("Unable to find `base_class` '"..struct.base_class.."'.")
     end
 
+    #local function is_nil_override(expression)
+      $l(return) ($(expression) == nil_override or (type($(expression)) == "table" and $(expression).null))
+    #end
+
     local base_struct = base_class.struct
 
     ---@param base? table @ from `base_class`
     ---@param this? table @ from `struct`
     ---@return table?
     local function merge(base, this)
-      local result = util.copy(base)
-      if this then
-        result = result or {}
-        for k, v in next, this do
-          result[k] = v
+      if $(is_nil_override($this)) then
+        return nil
+      else
+        local result = util.copy(base)
+        if this then
+          result = result or {}
+          for k, v in next, this do
+            if $(is_nil_override($v)) then
+              result[k] = nil
+            else
+              result[k] = v
+            end
+          end
         end
+        return result
       end
-      return result
     end
 
     -- append struct.states to base_struct.states
@@ -197,12 +209,20 @@ local function register_class(struct, parent_class_name)
     end
 
     for _, special_event_name in next, special_event_names do
-      if not struct[special_event_name] then
+      local special_event = struct[special_event_name]
+      if not special_event then
         struct[special_event_name] = base_struct[special_event_name]
+      elseif $(is_nil_override($special_event)) then
+        struct[special_event_name] = nil
       end
     end
-    if not struct.get_children then
-      struct.get_children = base_struct.get_children
+    do
+      local get_children = struct.get_children
+      if not get_children then
+        struct.get_children = base_struct.get_children
+      elseif $(is_nil_override($get_children)) then
+        struct.get_children = nil
+      end
     end
 
     for field_name, value in next, base_class.extra_class_data do
@@ -223,6 +243,12 @@ local function register_class(struct, parent_class_name)
         for k, v in next, base_struct.events do
           struct_events["base_"..k] = v
         end
+      end
+    end
+
+    for k, v in next, struct do
+      if $(is_nil_override($v)) then
+        struct[k] = nil
       end
     end
 
@@ -603,6 +629,7 @@ return {
   register_inst_to_state = register_inst_to_state,
   deregister_inst_from_state = deregister_inst_from_state,
   register_class = register_class,
+  nil_override = nil_override,
 
   ##if debug then
     classes = classes,
