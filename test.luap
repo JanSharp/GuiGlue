@@ -1,0 +1,51 @@
+
+---@diagnostic disable: no-implicit-any
+---@diagnostic disable: undefined-field
+
+local std_gui = require("__GuiGlue__.std-gui")
+local attr = require("__GuiGlue__.std-gui-attributes")
+
+local bar = {
+  class_name = "bar",
+  states = {"hi"},
+  elem = {type = "flow"},
+  events = {
+    on_click = self => {game.print(self.hi.bar)},
+  },
+}
+
+local states = {"state"}
+
+local foo = {
+  class_name = "foo",
+  states = states,
+  elem = {type = "frame", caption = "foo"},
+  elem_mods = {auto_center = true},
+  -- state_mapping = {
+  --   bar = {state = "hello.world"},
+  -- },
+  state_mapping = {
+    bar = {state = "state", hi = "state.hi"},
+  },
+  get_children = "default",
+  structs = {
+    bar = {
+      base_class = "bar",
+      states = states,
+      style_mods = {
+        horizontally_squashable = false,
+      },
+      style = {
+        parent = "black_label_with_left_padding",
+        horizontally_squashable = "on",
+      },
+      elem = {
+        type = "label",
+        caption = attr.dynamic("state.bar", s => (s.state.bar)),
+      },
+    },
+  },
+}
+
+std_gui.register_class(bar)
+std_gui.register_class(foo)

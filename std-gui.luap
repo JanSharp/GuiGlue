@@ -14,6 +14,7 @@ local classes = {} ---@type table<string, StdGuiClass>
 
 local nil_override = {null = true}
 
+local mod_name = script and script.mod_name
 local changed_state_lut
 
 local function on_load()
@@ -82,7 +83,7 @@ local special_event_names = {
   "on_destroy",
 
   "on_state_dispatch",
-  "on_derive", -- TODO: not sure about on_derivee and it's implementation if any
+  "on_derive", -- TODO: not sure about on_derive and it's implementation if any
 }
 
 local special_field_names = {
@@ -96,6 +97,7 @@ local special_field_names = {
   "get_children", -- overridden
   "structs", -- ignored
   "events", -- merged
+  "style", -- if it is a table replace it with the generated style name
 }
 -- any additional data is also merged
 
@@ -136,6 +138,9 @@ local function register_class(struct, parent_class_name)
   -- don't support StdAttributes
   local events
   local extra_class_data = {}
+
+  local style_name
+  local style_table
 
   local class_name = parent_class_name
     and parent_class_name.."-"..struct.class_name
@@ -208,6 +213,38 @@ local function register_class(struct, parent_class_name)
       struct[field_name] = merge(base_struct[field_name], struct[field_name])
     end
 
+    add_param = struct.add_param
+
+    do
+      local style = struct.style
+      if style then
+        if type(style) == "table" then
+          #if DEBUG then
+            assert(mod_name, "When using data stage styles make sure to call \z
+              `std_gui.set_mod_name` in data stage before any \z
+              `std_gui.register_class` calls.")
+          #end
+          style_name = mod_name.."_"..class_name
+          local base_style_table = base_class.style_table
+          if base_style_table then
+            style_table = merge(base_style_table, style)
+            struct.style = style_table
+          else
+            style_table = style
+          end
+          style_table.type = string.gsub(add_param.type, "%-", "_").."_style"
+          struct.style_table = style_table
+        else
+          style_name = style
+          struct.style_name = style
+        end
+      else
+        style_table = base_class.style_table
+        style_name = base_class.style_name
+        struct.style = style_table or style_name
+      end
+    end
+
     for _, special_event_name in next, special_event_names do
       local special_event = struct[special_event_name]
       if not special_event then
@@ -254,6 +291,7 @@ local function register_class(struct, parent_class_name)
 
     struct_class_name_map = util.copy(base_class.struct_names)
   else
+    add_param = struct.add_param
     struct_class_name_map = {}
   end
 
@@ -269,12 +307,16 @@ local function register_class(struct, parent_class_name)
     struct = struct,
     base_class = base_class,
     framework_class = class,
+    style_name = style_name,
 
     -- needed when inheriting
-    state_names = state_names,
     struct_names = struct_class_name_map,
     extra_class_data = extra_class_data,
+    style_table = style_table,
   }
+
+  add_param = struct.add_param
+  add_param.style = style_name
 
   classes[class_name] = std_class
 
@@ -291,10 +333,7 @@ local function register_class(struct, parent_class_name)
     end
   end
 
-  add_param = struct.add_param
-  if add_param then
-    parse_table_with_std_attributes(add_param, static_add_param, dynamic_add_param)
-  end
+  parse_table_with_std_attributes(add_param, static_add_param, dynamic_add_param)
 
   elem_mods = struct.elem_mods
   if elem_mods then
@@ -622,6 +661,25 @@ local function register_class(struct, parent_class_name)
   struct.structs = nil
 end
 
+local function generate_data_stage_styles()
+  local already_generated_names = {}
+  local styles = select(2, next(data.raw["gui-style"]))
+  for _, class in next, classes do
+    local style_table = class.style_table
+    if style_table then
+      local style_name = class.style_name
+      if not already_generated_names[style_name] then
+        already_generated_names[style_name] = true
+        styles[style_name] = style_table
+      end
+    end
+  end
+end
+
+local function set_mod_name(new_mod_name)
+  mod_name = new_mod_name
+end
+
 return {
   on_load = on_load,
   on_init = on_init,
@@ -630,6 +688,10 @@ return {
   deregister_inst_from_state = deregister_inst_from_state,
   register_class = register_class,
   nil_override = nil_override,
+
+  -- data stage functions
+  generate_data_stage_styles = generate_data_stage_styles,
+  set_mod_name = set_mod_name,
 
   ##if debug then
     classes = classes,

@@ -1,2 +1,7 @@
 
 require("__GuiGlue__.std-styles")
+
+local std_gui = require("__GuiGlue__.std-gui")
+std_gui.set_mod_name("GuiGlue")
+require("__GuiGlue__.test")
+std_gui.generate_data_stage_styles()

@@ -277,21 +277,23 @@ local function register_class(class)
   class.destroy = destroy
 end
 
-for _, event_name in pairs(event_names) do
-  local handler_name = "on_"..event_name
-  local event_specific_handlers = event_handlers[event_name]
+if script then
+  for _, event_name in pairs(event_names) do
+    local handler_name = "on_"..event_name
+    local event_specific_handlers = event_handlers[event_name]
 
-  ---@param event on_gui_click (or any other of the on_gui events)
-  script.on_event(defines.events["on_gui_"..event_name], event => {
-    if not event.element then return end -- for on_gui_closed and on_gui_opened
-    local tags = event.element.tags
-    if tags.__gui_glue_magic == tags_magic then
-      local inst = event_specific_handlers[tags.id]
-      if inst then
-        inst[handler_name](inst, event)
+    ---@param event on_gui_click (or any other of the on_gui events)
+    script.on_event(defines.events["on_gui_"..event_name], event => {
+      if not event.element then return end -- for on_gui_closed and on_gui_opened
+      local tags = event.element.tags
+      if tags.__gui_glue_magic == tags_magic then
+        local inst = event_specific_handlers[tags.id]
+        if inst then
+          inst[handler_name](inst, event)
+        end
       end
-    end
-  })
+    })
+  end
 end
 
 return {
