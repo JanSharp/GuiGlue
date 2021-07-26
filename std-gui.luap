@@ -117,7 +117,7 @@ local function register_class(struct, parent_class_name)
   struct.elem = nil
 
   #if DEBUG then
-    print(struct.class_name)
+    (__DebugAdapter or _ENV).print(struct.class_name)
   #end
 
   local struct_class_name_map ---@type table<string, string>
@@ -458,7 +458,7 @@ local function register_class(struct, parent_class_name)
             #local function prep_assert(expression)
               if not $(expression) then
                 -- TODO: add more info in error messages
-                error("`$(expression)` missing when `reuse_states` was set.")
+                error("`"..$e($(expression)).."` missing when `reuse_states` was set.")
               end
             #end
             #prep_assert($e(params.states))
