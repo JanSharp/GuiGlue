@@ -14,7 +14,6 @@ local classes = {} ---@type table<string, StdGuiClass>
 
 local nil_override = {null = true}
 
-local mod_name = script and script.mod_name
 local changed_state_lut
 
 local function on_load()
@@ -219,12 +218,7 @@ local function register_class(struct, parent_class_name)
       local style = struct.style
       if style then
         if type(style) == "table" then
-          #if DEBUG then
-            assert(mod_name, "When using data stage styles make sure to call \z
-              `std_gui.set_mod_name` in data stage before any \z
-              `std_gui.register_class` calls.")
-          #end
-          style_name = mod_name.."_"..class_name
+          style_name = (script and script.mod_name or "").."_"..class_name
           local base_style_table = base_class.style_table
           if base_style_table then
             style_table = merge(base_style_table, style)
@@ -661,23 +655,19 @@ local function register_class(struct, parent_class_name)
   struct.structs = nil
 end
 
-local function generate_data_stage_styles()
+local function generate_data_stage_styles(mod_name)
   local already_generated_names = {}
   local styles = select(2, next(data.raw["gui-style"]))
   for _, class in next, classes do
     local style_table = class.style_table
     if style_table then
-      local style_name = class.style_name
+      local style_name = mod_name..class.style_name
       if not already_generated_names[style_name] then
         already_generated_names[style_name] = true
         styles[style_name] = style_table
       end
     end
   end
-end
-
-local function set_mod_name(new_mod_name)
-  mod_name = new_mod_name
 end
 
 return {
@@ -691,7 +681,6 @@ return {
 
   -- data stage functions
   generate_data_stage_styles = generate_data_stage_styles,
-  set_mod_name = set_mod_name,
 
   ##if debug then
     classes = classes,
