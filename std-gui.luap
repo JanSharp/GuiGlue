@@ -146,7 +146,39 @@ local function register_class(struct, parent_class_name)
     or struct.class_name
   struct.class_name = class_name
 
-  -- TODO: implement nil override
+  #local merge
+  #local function prep_hanlde_styles(base_class)
+    do
+      local style = struct.style
+      if style then
+        if type(style) == "table" then
+          style_name = (script and script.mod_name or "").."_"..class_name
+          #if base_class then
+            local base_style_table = $(base_class).style_table
+            if base_style_table then
+              style_table = merge(base_style_table, style)
+              struct.style = style_table
+            else
+              style_table = style
+            end
+          #else
+            style_table = style
+          #end
+          style_table.type = string.gsub(add_param.type, "%-", "_").."_style" -- TODO: string.gsub(add_param.type, "%-", "_") is not accurate due to inconsistencies between control stage and data stage
+          struct.style_table = style_table
+        else
+          style_name = style
+          struct.style_name = style
+        end
+      ##if base_class then
+      else
+        style_table = $(base_class).style_table
+        style_name = $(base_class).style_name
+        struct.style = style_table or style_name
+      ##end
+      end
+    end
+  #end
 
   local base_class
   if struct.base_class then
@@ -164,7 +196,7 @@ local function register_class(struct, parent_class_name)
     ---@param base? table @ from `base_class`
     ---@param this? table @ from `struct`
     ---@return table?
-    local function merge(base, this)
+    $p(local) function merge(base, this)
       if $(is_nil_override($this)) then
         return nil
       else
@@ -214,30 +246,7 @@ local function register_class(struct, parent_class_name)
 
     add_param = struct.add_param
 
-    do
-      local style = struct.style
-      if style then
-        if type(style) == "table" then
-          style_name = (script and script.mod_name or "").."_"..class_name
-          local base_style_table = base_class.style_table
-          if base_style_table then
-            style_table = merge(base_style_table, style)
-            struct.style = style_table
-          else
-            style_table = style
-          end
-          style_table.type = string.gsub(add_param.type, "%-", "_").."_style"
-          struct.style_table = style_table
-        else
-          style_name = style
-          struct.style_name = style
-        end
-      else
-        style_table = base_class.style_table
-        style_name = base_class.style_name
-        struct.style = style_table or style_name
-      end
-    end
+    #prep_hanlde_styles($base_class)
 
     for _, special_event_name in next, special_event_names do
       local special_event = struct[special_event_name]
@@ -286,6 +295,9 @@ local function register_class(struct, parent_class_name)
     struct_class_name_map = util.copy(base_class.struct_names)
   else
     add_param = struct.add_param
+
+    #prep_hanlde_styles()
+
     struct_class_name_map = {}
   end
 

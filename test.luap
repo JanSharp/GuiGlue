@@ -27,7 +27,7 @@ local foo = {
   state_mapping = {
     bar = {state = "state", hi = "state.hi"},
   },
-  get_children = "default",
+  get_children = "default", -- TODO: what if `nil` represents "default" and it just doesn't do anything if there are no structs
   structs = {
     bar = {
       base_class = "bar",
