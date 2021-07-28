@@ -453,8 +453,8 @@ local function register_class(struct, parent_class_name)
           #if DEBUG then
             #local function prep_assert(expression)
               if not $(expression) then
-                -- TODO: add more info in error messages
-                error("`"..$e($(expression)).."` missing when `reuse_states` was set.")
+                error("`"..$e($(expression)).."` missing when `reuse_states` was set \z
+                  (when creating instance of `"..class_name.."`).")
               end
             #end
             #prep_assert($e(params.states))
