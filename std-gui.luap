@@ -309,9 +309,6 @@ local function register_class(struct, parent_class_name)
     style_table = style_table,
   }
 
-  add_param = struct.add_param
-  add_param.style = style_name
-
   classes[class_name] = std_class
 
   local function parse_table_with_std_attributes(definition, static, dynamic)
@@ -327,7 +324,12 @@ local function register_class(struct, parent_class_name)
     end
   end
 
-  parse_table_with_std_attributes(add_param, static_add_param, dynamic_add_param)
+
+  add_param = struct.add_param
+  if add_param then
+    add_param.style = style_name
+    parse_table_with_std_attributes(add_param, static_add_param, dynamic_add_param)
+  end
 
   elem_mods = struct.elem_mods
   if elem_mods then
